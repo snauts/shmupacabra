@@ -1,0 +1,9 @@
+#!/bin/sh
+
+if [ "$1" == "--cflags" ]; then
+    echo -Iwin/SDL
+fi
+
+if [ "$1" == "--libs" ]; then
+    echo -Lsos -Lwin -lmingw32 -lSDLmain -lSDL -mwindows
+fi

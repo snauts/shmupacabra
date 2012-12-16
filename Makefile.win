@@ -1,0 +1,28 @@
+PROJECT=sos
+BIN = $(PROJECT).exe
+PREFIX=i586-mingw32msvc-
+CC = $(PREFIX)gcc
+
+CFLAGS = -Wall -Wextra -std=c99 -g -I.
+INCLUDE = -Iwin/SDL -Ilua-5.1/src
+LIBS = -lopengl32 -lSDL_mixer -Llua-5.1/src -Lsos -Lwin -lmingw32 \
+	-lSDLmain -lSDL -mwindows -llua -lSDL_image 
+
+SRC := $(wildcard src/*.c)
+OBJ := $(patsubst %.c,%.o,$(SRC))
+DEP := $(subst .o,.d,$(OBJ))
+
+$(PROJECT)/$(BIN): $(OBJ)
+	make -C lua-5.1 CC=$(PREFIX)gcc AR=$(PREFIX)"ar rcu" \
+		RANLIB=$(PREFIX)ranlib mingw
+	$(PREFIX)windres src/$(PROJECT).rc -O coff -o src/$(PROJECT).res
+	$(CC) -o $@ $^ $(LIBS) src/$(PROJECT).res 
+
+src/%.o: src/%.c
+	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@ -MD
+
+.PHONY clean:
+	make clean -C lua-5.1
+	rm -f $(OBJ) $(DEP) $(PROJECT)/$(BIN)
+
+-include $(DEP)

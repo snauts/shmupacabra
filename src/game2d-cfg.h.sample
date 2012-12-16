@@ -1,0 +1,50 @@
+#ifndef GAME2D_COMPILE_CFG_H
+#define GAME2D_COMPILE_CFG_H
+
+/* Feature switches. */
+#define ENABLE_LUA              1
+#define ENABLE_SQLITE           0
+#define ENABLE_SDL_VIDEO        1
+#define ENABLE_SDL2             0
+#define ENABLE_AUDIO            1
+#define ENABLE_TOUCH            0
+#define ENABLE_KEYS             1
+#define ENABLE_MOUSE            0
+#define ENABLE_JOYSTICK         1
+#define ENABLE_ACCELEROMETER    0
+#define ENABLE_TILE_GRID        1
+
+#define PLATFORM_IOS            0
+
+/* Other limits. */
+#define VISIBLE_TILES_MAX       400
+#define GRID_VISITED_MAX        800
+#define SHAPEGROUPS_MAX         20
+#define ACTIVE_BODIES_MAX       400
+#define ACTIVE_SHAPES_MAX       400
+#define TEXCOORD_VBO_SIZE       1024
+
+/* How far back we remember object state (only useful when rewinding time). */
+#define TRACE_MAX               0
+
+/*
+ * If true, bodies do not go to sleep once they leave camera vicinity. All
+ * bodies are always active.
+ * Also since this would only be used for games where everything happens almost
+ * within the visible part of the screen, tile grid is automatically disabled
+ * for efficiency.
+ */
+ */
+#define ALL_NOCTURNAL 0
+
+#if ALL_NOCTURNAL
+#define ENABLE_TILE_GRID 0
+#endif
+
+/*
+ * If true, object positions are never rounded. In this case textures
+ * should be filtered to avoid artifacts.
+ */
+#define ALL_SMOOTH 0
+
+#endif  /* GAME2D_COMPILE_CFG_H */
