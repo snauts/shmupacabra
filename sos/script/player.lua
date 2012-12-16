@@ -791,7 +791,7 @@ local function LevelEnd()
 end
 
 local function SaveGame()
-        local f = io.open("saavgaam", "w")
+        local f = io.open(saveGame, "w")
         if f then
 		state.lastStars = state.stars
 		state.lastLives = state.lives

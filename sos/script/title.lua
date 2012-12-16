@@ -109,7 +109,7 @@ local function Restore()
 	input.UnbindAll()
 	mainMenu.BindAll()
 	input.RestoreNormal()
-        local f = io.open("setup.lua", "w")
+        local f = io.open(setupFile, "w")
         if f then
 		local function Write(var)
 			local val = util.Format(Cfg.controls[var])
@@ -140,7 +140,7 @@ end
 local Main = nil
 
 local function LoadGame()
-	dofile("saavgaam")
+	dofile(saveGame)
 	util.Level(state.levelNum, true)()
 end
 
@@ -151,7 +151,7 @@ local function Game()
 		    { text = txt.beginning, 
 		      Func = util.NewGame },
 		    { text = txt.continue,
-		      grayOut = not util.FileExists("saavgaam"),
+		      grayOut = not util.FileExists(saveGame),
 		      Func = LoadGame }, },
 		  false, false, true)
 
