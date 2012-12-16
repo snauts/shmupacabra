@@ -54,6 +54,16 @@ release: # this rule is intened to be used only on linux
 		$(PROJECT)/config.lua -i
 	zip -r $(PROJECT)-$(VERSION).zip $(PROJECT)
 
+install:
+	mkdir -p /opt/shmupacabra
+	cp sos/* /opt/shmupacabra/ -r
+	rm /opt/shmupacabra/*.dll -f
+	sed "s/linux = false/linux = true/" -i /opt/shmupacabra/script/first.lua
+	cp src/shmupacabra /usr/bin/
+
+uninstall:
+	rm /opt/shmupacabra /usr/bin/shmupacabra -rf
+
 .PHONY clean:
 	make clean -C lua-5.1
 	rm -f $(OBJ) $(DEP) $(PROJECT)/$(BIN)

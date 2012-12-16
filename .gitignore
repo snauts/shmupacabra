@@ -11,12 +11,12 @@
 
 src/sos.res
 
+sos/saavgaam
 sos/stdout.txt
 sos/stderr.txt
 sos/sos-linux32
 sos/sos-linux64
 sos/sos.exe
 sos/setup.lua
-sos/config.lua
 sos/script/debug.lua
 
