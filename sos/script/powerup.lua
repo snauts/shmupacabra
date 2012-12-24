@@ -31,7 +31,7 @@ end
 local function GetStar(pShape, sShape)
 	local star = actor.store[sShape]
 	if star.pulled then
-		util.PlaySound(gameWorld, "sound/star.ogg", 0.01, 0, 0.3)
+		util.PlaySound(gameWorld, "sound/star.ogg", 0.01, 0, 0.1)
 		SmallBurst(star.body, 3)
 		powerup.IncStars()
 		actor.Delete(star)
