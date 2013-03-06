@@ -212,5 +212,5 @@ void check_gl_errors__(void)
                 log_err("OpenGL: 0x%x", err);
                 err = glGetError();
         }
-        abort();    
+        //abort();    
 }
