@@ -677,7 +677,7 @@ LUA_ChopImage(lua_State *L)
 #endif
         /* Create sprite-list frames. */
         unsigned num_frames = 0;
-        TexFrag tmp_frames[200];
+        TexFrag tmp_frames[1024];
         unsigned sentinel = (total > 0) ? first + (total * (skip+1)) :
                                           num_rows * num_cols;
         info_assert(L, sentinel <= num_rows * num_cols && first < sentinel,
