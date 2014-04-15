@@ -696,7 +696,7 @@ local function ShootHit(shoot, mob)
 		hitCount = hitCount - 1
 	else
 		hitCount = util.Random(5, 10)
-		explode.Splinters(shoot.body, shoot.z, 150, 20)
+		explode.Splinters(shoot.body, shoot.z, 150, 60)
 	end
 	util.PlaySound(gameWorld, "sound/hit.ogg", 0.1, 0, 0.05)
 end

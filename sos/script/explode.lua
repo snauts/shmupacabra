@@ -1,3 +1,5 @@
+local splinterCount = 4
+
 local explodeName = { "image/explode.png", filter = true }
 local sprite = eapi.ChopImage(explodeName, { 64, 64 })
 local spriteOffset = { x = -32, y = -32 }
@@ -28,11 +30,12 @@ local function Splinter(parentBody, z, angle)
 	return body
 end
 
+local splinterFraction =  1.0 / (splinterCount - 1)
 local function Splinters(parentBody, z, startAngle, stepAngle)
 	local bag = { }
-	stepAngle = stepAngle or 60
+	stepAngle = (stepAngle or 180) * splinterFraction
 	startAngle = startAngle or 0
-	for i = 0, 3, 1 do
+	for i = 0, splinterCount - 1, 1 do
 		bag[i] = Splinter(parentBody, z, startAngle + i * stepAngle)
 	end
 	eapi.AddTimer(bag[0], 1, function() util.DestroyTable(bag) end)
