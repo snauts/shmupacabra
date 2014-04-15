@@ -1,3 +1,6 @@
+local gaspRows  = 6
+local gaspCount = 10
+
 local lastHealth = 600
 local legOffHealth = lastHealth + 800
 local bossHealth = legOffHealth + 1300
@@ -161,14 +164,15 @@ local function Shoot(obj)
 		eapi.AddTimer(staticBody, time, FN)
 	end
 	local function Full()
-		for y = -6, 6, 1 do
+		local step = 144 / gaspRows
+		for y = -gaspRows, gaspRows, 1 do
 			for x = math.abs(y) * 1.4, 10, 1 do
-				TimedExplode({ x = x * 24, y = y * 24 + 30 })
+				TimedExplode({ x = x * 24, y = y * step + 30 })
 			end
 		end
 	end
 	local function FullSeries()
-		util.Repeater(Full, 10, 0.25, staticBody)
+		util.Repeater(Full, gaspCount, 2.5 / gaspCount, staticBody)
 		StarWave({ x = 300, y = -100 }, 3)
 	end
 	util.DoEventsRelative({ { 0.0, Area({ x = 156, y =  60 }) },
