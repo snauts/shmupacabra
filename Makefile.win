@@ -1,9 +1,13 @@
 PROJECT=sos
 BIN = $(PROJECT).exe
-PREFIX=i586-mingw32msvc-
+PREFIX=i686-w64-mingw32-
 CC = $(PREFIX)gcc
 
-CFLAGS = -Wall -Wextra -std=c99 -g -I.
+CFLAGS = -Wall -Wextra -std=c99 -g -I. \
+	 -Wno-unused-but-set-variable \
+	 -Wno-implicit-fallthrough \
+	 -Wno-unused-function
+
 INCLUDE = -Iwin/SDL -Ilua-5.1/src
 LIBS = -lopengl32 -lSDL_mixer -Llua-5.1/src -Lsos -Lwin -lmingw32 \
 	-lSDLmain -lSDL -mwindows -llua -lSDL_image 
