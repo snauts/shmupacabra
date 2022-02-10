@@ -21,7 +21,6 @@ else
 	EXTRA_LIBS = -ldl -lm
 	EXTRA_CFLAGS = \
 		-Wno-unused-but-set-variable \
-		-Wno-misleading-indentation \
 		-Wno-implicit-fallthrough \
 		-Wno-unused-function
 	TARGET = linux

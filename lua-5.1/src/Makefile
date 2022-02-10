@@ -8,7 +8,7 @@
 PLAT= none
 
 CC= gcc
-CFLAGS= -O2 -Wall -Wno-misleading-indentation $(MYCFLAGS)
+CFLAGS= -O2 -Wall $(MYCFLAGS)
 AR= ar rcu
 RANLIB= ranlib
 RM= rm -f
