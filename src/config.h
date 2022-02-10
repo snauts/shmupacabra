@@ -4,7 +4,7 @@
 #include "common.h"
 
 /* Cached configuration (mostly read from config.lua). */
-struct {
+struct Config {
         int             debug;
         int             fullscreen;
         int             flip;       /* True if device is flipped bottom up. */
@@ -89,7 +89,9 @@ struct {
                 int sound;
                 int music;
         } poolsize;
-} config;
+};
+
+extern struct Config config;
 
 int     cfg_read(const char *source);
 void    cfg_close(void);

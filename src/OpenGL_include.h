@@ -14,21 +14,11 @@
 #else
   #include <SDL_opengl.h>
 
-#ifndef glGenerateMipmap
-  void (*glGenerateMipmap)(GLenum target);
-#endif
-#ifndef glGenFramebuffers
-  void (*glGenFramebuffers)(GLsizei n, GLuint *ids);
-#endif
-#ifndef glBindFramebuffer
-  void (*glBindFramebuffer)(GLenum target, GLuint framebuffer);
-#endif
-#ifndef glFramebufferTexture2D
-  void (*glFramebufferTexture2D)(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
-#endif
-#ifndef glDeleteFramebuffers
-  void (*glDeleteFramebuffers)(GLsizei n, GLuint *framebuffers);
-#endif
+extern void (*glGenerateMipmap)(GLenum target);
+extern void (*glGenFramebuffers)(GLsizei n, GLuint *ids);
+extern void (*glBindFramebuffer)(GLenum target, GLuint framebuffer);
+extern void (*glFramebufferTexture2D)(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
+extern void (*glDeleteFramebuffers)(GLsizei n, GLuint *framebuffers);
 
 #endif  /* !PLATFORM_IOS */
 

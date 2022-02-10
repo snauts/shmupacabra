@@ -14,6 +14,14 @@
 #include "utlist.h"
 #include "render.h"
 
+struct Config config;
+
+void (*glGenerateMipmap)(GLenum target);
+void (*glGenFramebuffers)(GLsizei n, GLuint *ids);
+void (*glBindFramebuffer)(GLenum target, GLuint framebuffer);
+void (*glFramebufferTexture2D)(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
+void (*glDeleteFramebuffers)(GLsizei n, GLuint *framebuffers);
+
 #ifndef NDEBUG
 int     drawShapes, drawBodies, drawTileBBs, drawShapeBBs, drawGrid;
 int     outsideView;

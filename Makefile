@@ -19,6 +19,11 @@ else
 	VERSION = `git branch | grep '*' | cut -d ' ' -f 2`
 	LIBS = -lGL -lSDL_mixer
 	EXTRA_LIBS = -ldl -lm
+	EXTRA_CFLAGS = \
+		-Wno-unused-but-set-variable \
+		-Wno-misleading-indentation \
+		-Wno-implicit-fallthrough \
+		-Wno-unused-function
 	TARGET = linux
 	SDL_CONFIG = sdl-config
 ifeq ($(shell uname -m),x86_64)
