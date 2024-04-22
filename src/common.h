@@ -25,10 +25,6 @@ typedef unsigned int uint;
   typedef int Sound;
 #endif
 
-#if !ENABLE_SDL2
-  typedef int SDL_Window;
-#endif
-
 /*
  * snprintf() is not available on Windows.
  */

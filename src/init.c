@@ -119,10 +119,6 @@ float  mainfb_texture_s, mainfb_texture_t;
 void
 init_main_framebuffer(void)
 {
-        /* Do nothing if framebuffer extensions not present. */
-        if (glGenFramebuffers == NULL)
-                return;
-                
         uint fb_texture_w = nearest_pow2(config.screen_width);
         uint fb_texture_h = nearest_pow2(config.screen_height);
         mainfb_texture_s = (float)config.screen_width / fb_texture_w;
@@ -151,20 +147,12 @@ init_main_framebuffer(void)
 void
 bind_main_framebuffer(void)
 {
-        /* Do nothing if framebuffer extensions not present. */
-        if (glGenFramebuffers == NULL)
-                return;
-                
         glBindFramebuffer(GL_FRAMEBUFFER_EXT, main_framebuffer);
 }
 
 void
 draw_main_framebuffer(void)
 {
-        /* Do nothing if framebuffer extensions not present. */
-        if (glGenFramebuffers == NULL)
-                return;
-
         /* Go back to default framebuffer and clear it. */
         glBindFramebuffer(GL_FRAMEBUFFER_EXT, 0);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -385,9 +373,6 @@ create_window(void)
         SDL_GL_GetAttribute(SDL_GL_DOUBLEBUFFER, &value);
         if (value != double_buf)
                 log_warn("Double buffer attribute: %i", value);
-        SDL_GL_GetAttribute(SDL_GL_SWAP_CONTROL, &value);
-        if (value != swap_control)
-                log_warn("Swap control attribute: %i", value);
         
         SDL_Window *win = NULL;
 #endif  /* !ENABLE_SDL2 */

@@ -16,11 +16,13 @@
 
 struct Config config;
 
+#if ENABLE_SDL2
 void (*glGenerateMipmap)(GLenum target);
 void (*glGenFramebuffers)(GLsizei n, GLuint *ids);
 void (*glBindFramebuffer)(GLenum target, GLuint framebuffer);
 void (*glFramebufferTexture2D)(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
 void (*glDeleteFramebuffers)(GLsizei n, GLuint *framebuffers);
+#endif
 
 #ifndef NDEBUG
 int     drawShapes, drawBodies, drawTileBBs, drawShapeBBs, drawGrid;
@@ -439,23 +441,11 @@ static void
 render_start(Camera *cam, BB *visible_area)
 {
         /* Camera viewport. */
-#if PLATFORM_IOS
-        if (!config.flip) {
-                glViewport(cam->viewport.t, cam->viewport.l,
-                           cam->viewport.b - cam->viewport.t,	/* width */
-                           cam->viewport.r - cam->viewport.l);	/* height */
-        } else {
-                glViewport(config.screen_height - cam->viewport.b,
-                           config.screen_width - cam->viewport.r,
-                           cam->viewport.b - cam->viewport.t,	/* width */
-                           cam->viewport.r - cam->viewport.l);	/* height */
-        }
-#else
         glViewport(cam->viewport.l,
 		   config.screen_height - cam->viewport.b + height_offset,
                    cam->viewport.r - cam->viewport.l,	/* width */
                    cam->viewport.b - cam->viewport.t);	/* height */
-#endif
+
         /* Visible area projection. */
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
@@ -473,31 +463,8 @@ render_start(Camera *cam, BB *visible_area)
         }
 #endif
         
-#if PLATFORM_IOS
-        if (config.screen_width > 500) {
-                glOrthof(-visible_halfsize.y, visible_halfsize.y,
-                         -visible_halfsize.x, visible_halfsize.x, 0.0, 1.0);
-        } else {
-                /*
-                 * XXX
-                 *
-                 * For some reason on 480x320 device (where the world
-                 * is twice as large as screen), we must substract 0.5
-                 * from visible size components to prevent seams from 
-                 * showing up everywhere.
-                 *
-                 * I thought I understood why this was so, but then I
-                 * cannot explain why it's not necessary for when the
-                 * world size matches screen size.
-                 */
-                glOrthof(-visible_halfsize.y-0.5, visible_halfsize.y-0.5,
-                         -visible_halfsize.x-0.5, visible_halfsize.x-0.5, 0.0,
-                         1.0);
-        }
-#else
         glOrtho(-visible_halfsize.x, visible_halfsize.x,
                 -visible_halfsize.y, visible_halfsize.y, 0.0, 1.0);
-#endif
         glMatrixMode(GL_MODELVIEW);
         
         /* Transform matrix according to camera position. */
@@ -901,39 +868,13 @@ render_to_framebuffer(Camera *cam)
                 ceilf(cam->size.y/cam->zoom)
         };
         vect_i visible_halfsize = {visible_size.x/2, visible_size.y/2};
-#if PLATFORM_IOS
-        if (config.screen_width > 500) {
-                glOrthof(-visible_halfsize.x,  visible_halfsize.x,
-                         visible_halfsize.y, -visible_halfsize.y, 0.0, 1.0);
-        } else {
-                /*
-                 * XXX
-                 *
-                 * For some reason on 480x320 device (where the world
-                 * is twice as large as screen), we must substract 0.5
-                 * from visible size components to prevent seams from 
-                 * showing up everywhere.
-                 *
-                 * I thought I understood why this was so, but then I
-                 * cannot explain why it's not necessary for when the
-                 * world size matches screen size.
-                 */
-                glOrthof(-visible_halfsize.x-0.5,  visible_halfsize.x-0.5,
-                          visible_halfsize.y-0.5, -visible_halfsize.y-0.5, 0.0,
-                         1.0);
-        }
-#else
         glOrtho(-visible_halfsize.x,  visible_halfsize.x,
                  visible_halfsize.y, -visible_halfsize.y, 0.0, 1.0);
-#endif
         
         glMatrixMode(GL_MODELVIEW);
         
         /* Transform matrix according to camera position. */
         glPushMatrix();
-#if PLATFORM_IOS
-        glLoadIdentity();       /* No device rotation for framebuffer. */
-#endif
         vect_f cam_pos = body_pos(&cam->body);
         int cam_x = posround(cam_pos.x);
         int cam_y = posround(cam_pos.y);

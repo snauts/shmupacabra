@@ -73,7 +73,6 @@ typedef void * TouchHandler;
 
 #if !ENABLE_SDL2
 
-typedef int SDL_Scancode;
 typedef SDL_keysym SDL_Keysym;
 #define SDL_SCANCODE_UNKNOWN 0
 #define SDL_NUM_SCANCODES 512

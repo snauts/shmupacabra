@@ -538,7 +538,7 @@ open_joysticks(void)
         for (int i = 0; i < num_joy; i++) {
                 SDL_Joystick *joy = SDL_JoystickOpen(i);
                 if (joy == NULL) {
-                        log_warn("    Could not open joystick (%i).", i);
+                        log_warn("    Could not open joystick");
                 } else {
                         log_msg("    Opened joystick `%s`.",
                                 SDL_JoystickName(joy));
