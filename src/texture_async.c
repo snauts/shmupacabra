@@ -242,7 +242,7 @@ static int
 run_task(Task *task)
 {
         assert(task->surf == NULL);
-        assert(task->filename && *task->filename != '\0');
+        assert(*task->filename != '\0');
         
         /* See if user gave us a buffer to read image data from. */
         if (task->img_data != NULL) {
