@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="text/html; charset=utf-8" http-equiv="Content-Type" />
+    <link rel="icon" href="/favicon.png" type="image/png" />
+    <title>Shmupacabra</title>
+    <style>
+      html,
+      body {
+        background-color: black;
+        height: 100%;
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      #container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      #canvasContainer {
+        position: relative;
+        width: 800px;
+        height: 480px;
+        display: none;
+      }
+      #canvasContainer:fullscreen {
+        cursor: none;
+      }
+      #overlayImage {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        display: none;
+      }
+      #canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+      #fullscreenBtn {
+        margin-top: 20px;
+        padding: 10px 20px;
+        font-size: 12px;
+        cursor: pointer;
+        background-color: black;
+        color: #00ff00;
+        border: 1px solid #00ff00;
+        outline: none;
+        font-family: "Courier New", Courier, monospace;
+        display: none;
+      }
+      #psychedelic-heading {
+        margin: 10px 0;
+        font-size: 52px;
+        font-family: "Courier New", Courier, monospace;
+        background: linear-gradient(orange, yellow, orange, yellow);
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(2px 2px 2px #222);
+      }
+      #loading {
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container">
+      <h1 id="psychedelic-heading">Prepare to shoot 'em up</h1>
+      <span id="loading">LOADING...</span>
+      <div
+        id="canvasContainer"
+        style="position: relative; width: 800px; height: 480px"
+      >
+        <canvas
+          id="canvas"
+          oncontextmenu="event.preventDefault()"
+          tabindex="-1"
+        ></canvas>
+        <img id="overlayImage" src="crt.png" alt="CRT Overlay" />
+      </div>
+
+      <button id="fullscreenBtn" onclick="goFullscreen();">FULLSCREEN</button>
+    </div>
+    <script>
+      var Module = {
+        print: () => {},
+        canvas: document.getElementById("canvas"),
+        setStatus: (text) => {
+          if (!text) {
+            document.getElementById("canvasContainer").style.display = "inline";
+            document.getElementById("fullscreenBtn").style.display = "inline";
+            document.getElementById("loading").style.display = "none";
+            document.getElementById("psychedelic-heading").style.display =
+              "none";
+          } else {
+            document.getElementById("loading").innerText = text;
+          }
+        },
+        totalDependencies: 0,
+        monitorRunDependencies: () => {},
+      };
+      function goFullscreen() {
+        document.getElementById("canvasContainer").requestFullscreen();
+      }
+      document.addEventListener("fullscreenchange", () => {
+        document.getElementById("overlayImage").style.display =
+          document.fullscreenElement ? "inline" : "none";
+      });
+    </script>
+    <script async src="index.js"></script>
+  </body>
+</html>
