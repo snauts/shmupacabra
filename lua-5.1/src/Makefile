@@ -7,10 +7,10 @@
 # Your platform. See PLATS for possible values.
 PLAT= none
 
-CC= gcc
-CFLAGS= -O2 -Wall $(MYCFLAGS)
-AR= ar rcu
-RANLIB= ranlib
+CC= emcc
+CFLAGS= -g -Wall -Wno-misleading-indentation $(MYCFLAGS)
+AR= emar rcu
+RANLIB= emranlib
 RM= rm -f
 LIBS= -lm $(MYLIBS)
 
