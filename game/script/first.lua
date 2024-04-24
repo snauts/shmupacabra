@@ -4,16 +4,8 @@ dofile("script/vector.lua")
 
 local linux = false
 
-setupFile  = "setup.lua"
-saveGame   = "saavgaam"
-
-if linux then
-	local home = os.getenv("HOME")
-	local dir = home .. "/.config/shmupacabra/"
-	os.execute("mkdir -p " .. dir)
-	setupFile = dir .. setupFile
-	saveGame = dir .. saveGame
-end
+setupFile  = "/savedata/setup.lua"
+saveGame   = "/savedata/saavgaam"
 
 if util.FileExists(setupFile) then
 	dofile(setupFile)

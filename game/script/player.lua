@@ -801,6 +801,7 @@ local function SaveGame()
 		f:write("state.levelNum = " .. (state.levelNum or num) .. "\n")
 		f:write("state.boss = " .. util.FormatBool(state.boss) .. "\n")
 		io.close(f)
+		eapi.SyncFS()
         end
 end
 

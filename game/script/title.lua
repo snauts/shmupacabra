@@ -117,6 +117,7 @@ local function Restore()
 		end
 		util.Map(Write, actions)
                 io.close(f)
+				eapi.SyncFS()
         end
 	MOTD()
 end
