@@ -3,20 +3,20 @@
 local eapi = eapi or { }
 
 Cfg = {
-        name = "Shmupacabra",
+	name = "Shmupacabra",
 	version = "devel",
 
 	-- Display.
 	scanlines	= true,
-	fullscreen	= true,
+	fullscreen	= false,
 	windowWidth	= 800,
-	windowHeight	= 480,
+	windowHeight = 480,
 	screenBPP	= 0,
 	
 	-- Sound.
 	channels	= 16,
 	frequency	= 22050,
-	chunksize	= 512,
+	chunksize	= 4096,
 	stereo		= true,
 
 	-- Debug things.
@@ -27,7 +27,7 @@ Cfg = {
 	printExtensions = false,
 	FPSUpdateInterval = 500,
 	gameSpeed = 0,
-        defaultShapeColor = {r=0,g=1,b=0},
+	defaultShapeColor = {r=0,g=1,b=0},
 
 	-- Default control scheme: actions mapped to keys.
 	controls = {
