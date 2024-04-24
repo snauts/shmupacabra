@@ -29,15 +29,6 @@
       #canvasContainer:fullscreen {
         cursor: none;
       }
-      #overlayImage {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        display: none;
-      }
       #canvas {
         position: absolute;
         top: 0;
@@ -59,6 +50,7 @@
         display: none;
       }
       #psychedelic-heading {
+        text-align: center;
         margin: 10px 0;
         font-size: 52px;
         font-family: "Courier New", Courier, monospace;
@@ -76,16 +68,12 @@
     <div id="container">
       <h1 id="psychedelic-heading">Prepare to shoot 'em up</h1>
       <span id="loading">LOADING...</span>
-      <div
-        id="canvasContainer"
-        style="position: relative; width: 800px; height: 480px"
-      >
+      <div id="canvasContainer">
         <canvas
           id="canvas"
           oncontextmenu="event.preventDefault()"
           tabindex="-1"
         ></canvas>
-        <img id="overlayImage" src="crt.png" alt="CRT Overlay" />
       </div>
 
       <button id="fullscreenBtn" onclick="goFullscreen();">FULLSCREEN</button>
@@ -111,10 +99,6 @@
       function goFullscreen() {
         document.getElementById("canvasContainer").requestFullscreen();
       }
-      document.addEventListener("fullscreenchange", () => {
-        document.getElementById("overlayImage").style.display =
-          document.fullscreenElement ? "inline" : "none";
-      });
     </script>
     <script async src="index.js"></script>
   </body>
