@@ -280,6 +280,7 @@ local function Goto(scene)
 
 	util.defaultFontset = LoadDefaultFont()
 	util.bigFontset = LoadBigFont()
+	eapi.NewSpriteList("image/star.png")
 
 	camera = eapi.NewCamera(gameWorld, vector.null, nil, nil)
 	eapi.SetBoundary(camera, WorldBounds(eapi.GetSize(camera)))
