@@ -1,11 +1,12 @@
 #ifndef GAME2D_COMPILE_CFG_H
 #define GAME2D_COMPILE_CFG_H
 
+// comment the following line for debug info
+#define NDEBUG 1
+
 /* Feature switches. */
-#define ENABLE_LUA              1
 #define ENABLE_SQLITE           0
 #define ENABLE_SDL_VIDEO        1
-#define ENABLE_SDL2             1
 #define ENABLE_AUDIO            1
 #define ENABLE_TOUCH            0
 #define ENABLE_KEYS             1
