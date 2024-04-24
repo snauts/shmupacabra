@@ -1,12 +1,12 @@
 #include "common.h"
 
-#if ENABLE_LUA
-
 #include <assert.h>
 #include <lua.h>
 #include <lauxlib.h>
 #include <stdlib.h>
 #include <math.h>
+#include <emscripten.h>
+#include "OpenGL_include.h"
 #include "eapi_C.h"
 #include "audio.h"
 #include "config.h"
@@ -23,7 +23,6 @@
 #include "assert_lua.h"
 #include "eapi_Lua.h"
 #include "render.h"
-#include "OpenGL_include.h"
 #include "stepfunc.h"
 
 #ifndef NDEBUG
@@ -83,7 +82,7 @@ do { \
         if (((Tile *)(x))->sprite_list != NULL) \
                 valid_spritelist(L, ((Tile *)(x))->sprite_list); \
 } while (0)
-        
+
 #else   /* NDEBUG */
 
 #define objtype_error(...)      abort()
@@ -132,12 +131,12 @@ LUA_BindKeyboard(lua_State *L)
         L_numarg_range(L, 2, 2);
         unsigned funcID = L_arg_uint(L, 1);
         intptr_t argID = L_arg_int(L, 2);
-        
+
         extern EventFunc key_bind;
         key_bind.type = EVFUNC_TYPE_LUA;
         key_bind.func.lua_func_id = funcID;
         key_bind.callback_data = argID;
-        
+
         return 0;
 }
 
@@ -146,7 +145,7 @@ LUA_GetKeyName(lua_State *L)
 {
         L_numarg_range(L, 1, 1);
         unsigned scancode = L_arg_uint(L, 1);
-        
+
         const char *name = SDL_GetScancodeName(scancode);
         if (*name != '\0')
                 lua_pushstring(L, name);
@@ -181,16 +180,16 @@ static int
 LUA_BindJoystickButton(lua_State *L)
 {
         open_joysticks();
-        
+
         L_numarg_range(L, 2, 2);
         unsigned funcID = L_arg_uint(L, 1);
         intptr_t argID = L_arg_int(L, 2);
-        
+
         extern EventFunc joybutton_bind;
         joybutton_bind.type = EVFUNC_TYPE_LUA;
         joybutton_bind.func.lua_func_id = funcID;
         joybutton_bind.callback_data = argID;
-        
+
         return 0;
 }
 
@@ -203,16 +202,16 @@ static int
 LUA_BindJoystickAxis(lua_State *L)
 {
         open_joysticks();
-        
+
         L_numarg_range(L, 2, 2);
         unsigned funcID = L_arg_uint(L, 1);
         intptr_t argID = L_arg_int(L, 2);
-        
+
         extern EventFunc joyaxis_bind;
         joyaxis_bind.type = EVFUNC_TYPE_LUA;
         joyaxis_bind.func.lua_func_id = funcID;
         joyaxis_bind.callback_data = argID;
-        
+
         return 0;
 }
 
@@ -233,12 +232,12 @@ LUA_BindMouseClick(lua_State *L)
         valid_camera(L, cam);
         unsigned func_id = L_arg_uint(L, 2);
         intptr_t arg_id = L_arg_int(L, 3);
-        
+
         EventFunc *bind = &cam->mouseclick_bind;
         bind->type = EVFUNC_TYPE_LUA;
         bind->func.lua_func_id = func_id;
         bind->callback_data = arg_id;
-        
+
         return 0;
 }
 
@@ -255,12 +254,12 @@ LUA_BindMouseMove(lua_State *L)
         valid_camera(L, cam);
         unsigned func_id = L_arg_uint(L, 2);
         intptr_t arg_id = L_arg_int(L, 3);
-        
+
         EventFunc *bind = &cam->mousemove_bind;
         bind->type = EVFUNC_TYPE_LUA;
         bind->func.lua_func_id = func_id;
         bind->callback_data = arg_id;
-        
+
         return 0;
 }
 
@@ -275,7 +274,7 @@ LUA_MousePos(lua_State *L)
         L_numarg_range(L, 1, 1);
         Camera *cam = L_arg_userdata(L, 1);
         valid_camera(L, cam);
-        
+
         L_push_vectf(L, mouse_pos(cam));
         return 1;
 }
@@ -307,7 +306,7 @@ LUA_What(lua_State *L)
 }
 
 /*
- * NewWorld(name, step, grid_area, grid_cellsz, trace_skip=0) -> world
+ * NewWorld(name, step, grid_area, grid_cellsz) -> world
  *
  * Create a new world and return its pointer. World is the topmost data
  * structure (see world.h).
@@ -321,23 +320,18 @@ LUA_What(lua_State *L)
  * grid_cellsz          Size of grid cells. Each cell is a square. Make the
  *                      cells somewhat larger than the most abundant object in
  *                      the world.
- * trace_skip           When recording body state for the purpose of rewinding
- *                      time, this option allows to skip steps so as to save
- *                      memory space. Leaving `trace_skip` at zero will cause
- *                      each and every step to be recorded.
  */
 static int
 LUA_NewWorld(lua_State *L)
 {
-        L_numarg_range(L, 4, 5);
+        L_numarg_range(L, 4, 4);
         const char *name = L_arg_cstr(L, 1);
         unsigned step = L_arg_uint(L, 2);
         BB area = L_arg_BB(L, 3);
         info_assert(L, area.l < area.r && area.b < area.t, "Invalid area box.");
         unsigned cellsz = L_arg_uint(L, 4);
-        unsigned trace_skip = L_argdef_uint(L, 5, 0);
-        
-        World *w = world_new(name, step, area, cellsz, trace_skip);
+
+        World *w = world_new(name, step, area, cellsz);
         lua_pushlightuserdata(L, w);
         return 1;
 }
@@ -368,7 +362,7 @@ LUA_NewBody(lua_State *L)
         L_numarg_range(L, 2, 3);
         void *parent = L_arg_userdata(L, 1);
         vect_f pos = L_arg_vectf(L, 2);
-        
+
         unsigned flags = 0;
 #if !ALL_NOCTURNAL
         int nocturnal = L_argdef_bool(L, 3, 0);
@@ -411,9 +405,9 @@ LUA_NewCamera(lua_State *L)
         BB viewport_arg_lua;
         BB *viewport_arg = L_argptr_BB(L, 4, &viewport_arg_lua);
         int sort = L_argdef_int(L, 5, 0);
-        
+
         valid_world(L, world);
-        
+
         /* Init viewport box. */
         BB viewport;
         if (viewport_arg != NULL) {
@@ -435,10 +429,10 @@ LUA_NewCamera(lua_State *L)
                                 .l=0, .r=config.screen_width,
                                 .b=config.screen_height, .t=0
                         };
-                }                
+                }
         }
         assert(viewport.r > viewport.l && viewport.b > viewport.t);
-        
+
         vect_i size = {0, 0};
         if (size_arg != NULL) {
                 size = *size_arg;
@@ -448,7 +442,7 @@ LUA_NewCamera(lua_State *L)
         }
         assert(size.x >= 0 && size.y >= 0);
         assert(size.x > 0 || size.y > 0);
-        
+
         /*
          * If one of the size components is zero, compute the other one using
          * viewport aspect ratio.
@@ -459,11 +453,11 @@ LUA_NewCamera(lua_State *L)
         if (size.y == 0)
                 size.y = (int)lroundf(size.x*(viewport.b - viewport.t) /
                                       (viewport.r - viewport.l));
-        
+
         /* Create camera and position its body. */
         Camera *cam = cam_new(world, size, viewport);
         body_set_pos(&cam->body, pos);
-        
+
         /*
          * Prepend to global camera list.
          * We must re-sort the list so that proper sort order is maintained.
@@ -472,7 +466,7 @@ LUA_NewCamera(lua_State *L)
         cam->sort = sort;               /* Don't forget to set "sort". */
         DL_PREPEND(cam_list, cam);
         DL_SORT(cam_list, cmp_cameras);
-        
+
         lua_pushlightuserdata(L, cam);
         return 1;
 }
@@ -507,17 +501,17 @@ get_texture_spec(lua_State *L, int index, char *name, unsigned bufsize,
                             "it's given correctly like this: "
                             "{\"path/to/image\", filter=true/false}.");
                 RCLESS(snprintf(name, bufsize, "%s", filename), (int)bufsize);
-                
+
                 /* Set flags. */
                 *flags = 0;
                 L_get_strfield(L, index, "filter");
                 info_assert(L, lua_isnil(L, -1) || lua_isboolean(L, -1),
                             "`filter` flag should be a boolean value.");
-                SETFLAG(*flags, TEXFLAG_FILTER, lua_toboolean(L, -1));
+                // SETFLAG(*flags, TEXFLAG_FILTER, lua_toboolean(L, -1));
                 L_get_strfield(L, index, "intensity");
                 info_assert(L, lua_isnil(L, -1) || lua_isboolean(L, -1),
                             "`intensity` flag should be a boolean value.");
-                SETFLAG(*flags, TEXFLAG_INTENSITY, lua_toboolean(L, -1));
+                // SETFLAG(*flags, TEXFLAG_INTENSITY, lua_toboolean(L, -1));
                 return;
         }
         }
@@ -574,10 +568,10 @@ LUA_NewSpriteList(lua_State *L)
 {
         L_numarg_range(L, 1, 999);
         int n = lua_gettop(L);
-        
+
         /* Read image from file and create OpenGL texture. */
         Texture *tex = load_texture(L, 1);
-        
+
         /*
          * If no sub-image arguments are present, create a single frame that
          * contains the whole texture.
@@ -590,12 +584,12 @@ LUA_NewSpriteList(lua_State *L)
                         .t = 0
                 };
                 assert(tf.r > tf.l && tf.b > tf.t);
-                
+
                 /* Create sprite-list and return its pointer. */
                 lua_pushlightuserdata(L, spritelist_new(tex, &tf, 1));
                 return 1;
         }
-        
+
         /*
          * For each subimage spec figure out what form it is in. Then add the
          * four texture coordinates to temporary texture fragment array.
@@ -605,11 +599,11 @@ LUA_NewSpriteList(lua_State *L)
         for (int i = 2; i <= n; i++) {
                 luaL_checktype(L, i, LUA_TTABLE);
                 lua_getfield(L, i, "l");
-                
+
                 /* Add a TexFrag to the frame list. */
                 assert(num_frames < ARRAYSZ(tmp_frames));
                 TexFrag *tf = &tmp_frames[num_frames++];
-                
+
                 /* Determine format and store into `tf`. */
                 if (lua_isnil(L, -1)) {
                         info_assert(L, lua_objlen(L, i) == 2,
@@ -630,9 +624,9 @@ LUA_NewSpriteList(lua_State *L)
                 }
                 assert(tf->r > tf->l && tf->b > tf->t);
         }
-        
+
         /* Create sprite-list and return its pointer. */
-        lua_pushlightuserdata(L, spritelist_new(tex, tmp_frames, num_frames));  
+        lua_pushlightuserdata(L, spritelist_new(tex, tmp_frames, num_frames));
         return 1;
 }
 
@@ -662,19 +656,14 @@ LUA_ChopImage(lua_State *L)
         unsigned total = L_argdef_uint(L, 4, 0);
         unsigned skip = L_argdef_uint(L, 5, 0);
         vect_i gap = L_argdef_vecti(L, 6, (vect_i){0, 0});
-        
+
         /* Read image from file and create OpenGL texture. */
         Texture *tex = load_texture(L, 1);
-        
+
         assert(size.x > 0 && size.y > 0);
-#if PLATFORM_IOS
-        int factor = (config.screen_width > 500) ? 2 : 1;
-        unsigned num_cols = tex->w / (size.x * factor); /* Number of columns. */
-        unsigned num_rows = tex->h / (size.y * factor); /* Number of rows. */
-#else        
         unsigned num_cols = tex->w / (size.x + gap.x);  /* Number of columns. */
         unsigned num_rows = tex->h / (size.y + gap.y);  /* Number of rows. */
-#endif
+
         /* Create sprite-list frames. */
         unsigned num_frames = 0;
         TexFrag tmp_frames[1024];
@@ -685,20 +674,13 @@ LUA_ChopImage(lua_State *L)
         for (unsigned i = first; i < sentinel; i += (1 + skip)) {
                 assert(num_frames < ARRAYSZ(tmp_frames));
                 TexFrag *tf = &tmp_frames[num_frames++];
-                
+
                 unsigned r = i / num_cols;
                 unsigned c = i - r * num_cols;
-#if PLATFORM_IOS
-                tf->l = (c  ) * size.x * factor;
-                tf->r = (c+1) * size.x * factor;
-                tf->b = (r+1) * size.y * factor;
-                tf->t = (r  ) * size.y * factor;
-#else
                 tf->l = c * (size.x + gap.x);
                 tf->r = c * (size.x + gap.x) + size.x;
                 tf->b = r * (size.y + gap.y) + size.y;
                 tf->t = r * (size.y + gap.y);
-#endif
         }
         assert(total == 0 || total == num_frames);
         lua_pushlightuserdata(L, spritelist_new(tex, tmp_frames, num_frames));
@@ -733,16 +715,16 @@ LUA_NewShape(lua_State *L)
         BB rect = L_arg_BB(L, 3);
         info_assert(L, bb_valid(rect), "Shape rectangle invalid.");
         const char *groupName = L_arg_cstr(L, 4);
-        
+
         /* Extract body pointer. */
         Body *body = get_body(L, parent);
         World *world = body->world;    /* Shorthand for world pointer. */
-        
+
         /* Extract collision group name and find corresponding group. */
         assert(groupName && strlen(groupName) > 0);
         Group *group;
         HASH_FIND_STR(world->groups, groupName, group);
-        
+
         /* Create group if it doesn't exist yet. */
         if (group == NULL) {
                 extern mem_pool mp_group;
@@ -750,14 +732,14 @@ LUA_NewShape(lua_State *L)
                 info_assert_va(L, strlen(groupName) < sizeof(group->name),
                             "Shape group name length exceeds maximum value "
                             "(%d).", sizeof(group->name));
-                
+
                 /* Set group name, ID, and add it to hash. */
                 strcpy(group->name, groupName);
                 group->index = world->next_group_id++;
                 assert(group->index < SHAPEGROUPS_MAX);
                 HASH_ADD_STR(world->groups, name, group);
         }
-        
+
         /* Shape definition. */
         ShapeDef def = {
                 .rect = {
@@ -767,11 +749,11 @@ LUA_NewShape(lua_State *L)
                         .t=rect.t + offset.y
                 }
         };
-        
+
         /* Create shape. */
         Shape *s = shape_new(body, group, SHAPE_RECTANGLE, def);
         s->color = config.defaultShapeColor;
-                        
+
         lua_pushlightuserdata(L, s);
         return 1;
 }
@@ -782,7 +764,7 @@ flip_sprites(Tile *t, int flipx, int flipy)
         /* Check if we need to flip. */
         if (!flipx && !flipy)
                 return;
-        
+
         SpriteList *sl = t->sprite_list;
         unsigned num_frames = sl->num_frames;
         TexFrag frames[num_frames];
@@ -803,7 +785,7 @@ flip_sprites(Tile *t, int flipx, int flipy)
                         frames[i].b = f->t;
                 }
         }
-        
+
         t->sprite_list = spritelist_new(sl->tex, frames, num_frames);
 }
 
@@ -820,7 +802,7 @@ LUA_SetSpriteList(lua_State *L)
         L_numarg_range(L, 2, 2);
         Tile *t = L_arg_userdata(L, 1);
         SpriteList *sprite_list = L_arg_userdata(L, 2);
-        
+
         /*
          * If explicit tile size was not previously set, calculate it from
          * either current or previous sprite-list.
@@ -830,11 +812,11 @@ LUA_SetSpriteList(lua_State *L)
                 SpriteList *sz_sprite_list = sprite_list != NULL ? sprite_list
                                                                : t->sprite_list;
                 valid_spritelist(L, sz_sprite_list);
-                
+
                 /* Get size that accomodates all frames. */
                 vect_i size = texfrag_maxsize(sz_sprite_list->frames,
                                               sz_sprite_list->num_frames);
-                
+
                 /*
                  * If sprite-list is set, store this calculated size as
                  * negative so drawing code knows individual sprite-list frame
@@ -847,11 +829,11 @@ LUA_SetSpriteList(lua_State *L)
                 }
                 tile_set_size(t, (vect_f){size.x, size.y});
         }
-        
+
         /* Assign sprite list and reset frame index. */
         t->sprite_list = sprite_list;
         tile_set_frame(t, 0);
-        
+
         /* Flip original sprite if necessary. */
         if (sprite_list != NULL) {
                 flip_sprites(t, t->flags & TILE_FLIP_X, t->flags & TILE_FLIP_Y);
@@ -885,7 +867,7 @@ LUA_NewTile(lua_State *L)
         vect_f *size_arg = L_argptr_vectf(L, 3, &size_arg_store);
         SpriteList *sprite_list = L_argdef_userdata(L, 4, NULL);
         float depth = L_argdef_float(L, 5, 0.0);
-        
+
 #ifndef NDEBUG
         if (sprite_list == NULL) {
                 info_assert(L, size_arg, "Missing size argument. If "
@@ -899,17 +881,17 @@ LUA_NewTile(lua_State *L)
 #endif
         /* Get parent Body object. */
         Body *body = get_body(L, parent);
-        
+
         vect_f size = {-10, -10};
         if (size_arg != NULL) {
                 size = *size_arg;
                 assert(size.x > 0.0 && size.y > 0.0);
         }
-        
+
         /* Create tile. */
         int grid_store = (*(int *)parent != OBJTYPE_CAMERA);
         Tile *t = tile_new(body, offset, size, depth, grid_store);
-        
+
         /* Call SetSpriteList(). */
         if (sprite_list != NULL) {
                 lua_pushcfunction(L, LUA_SetSpriteList);
@@ -917,7 +899,7 @@ LUA_NewTile(lua_State *L)
                 lua_pushlightuserdata(L, sprite_list);
                 lua_call(L, 2, 0);
         }
-        
+
         /* Return tile. */
         lua_pushlightuserdata(L, t);
         return 1;
@@ -939,13 +921,13 @@ LUA_NewTileCentered(lua_State *L)
         for (int i = 1; i <= n; i++)
                 lua_pushvalue(L, i);
         lua_call(L, n, 1);
-        
+
         /* Center tile. */
         Tile *t = lua_touserdata(L, n + 1);
         vect_f final_size = GetSize(t);
         vect_f pos = GetPos(t);
         SetPos(t, (vect_f){pos.x - final_size.x/2, pos.y - final_size.y/2});
-        
+
         return 1;
 }
 
@@ -959,7 +941,7 @@ LUA_Clone(lua_State *L)
 {
         L_numarg_range(L, 1, 1);
         void *obj = L_arg_userdata(L, 1);
-        
+
         switch (*(int *)obj) {
         case OBJTYPE_TILE: {
                 Tile *t = tile_clone(((Tile *)obj)->body, obj);
@@ -988,7 +970,7 @@ LUA_GetWorld(lua_State *L)
 {
         L_numarg_range(L, 1, 1);
         void *obj = L_arg_userdata(L, 1);
-        
+
         switch (*(int *)obj) {
         case OBJTYPE_WORLD: {
                 valid_world(L, obj);
@@ -1028,7 +1010,7 @@ LUA_GetBody(lua_State *L)
 {
         L_numarg_range(L, 1, 1);
         void *obj = L_arg_userdata(L, 1);
-        
+
         switch (*(int *)obj) {
         case OBJTYPE_WORLD: {
                 valid_world(L, obj);
@@ -1069,7 +1051,7 @@ LUA_GetTiles(lua_State *L)
 {
         L_numarg_range(L, 1, 1);
         void *obj = L_arg_userdata(L, 1);
-        
+
         Body *body = get_body(L, obj);
         lua_newtable(L);
         Tile *t;
@@ -1091,17 +1073,17 @@ LUA_GetShape(lua_State *L)
         L_numarg_range(L, 1, 1);
         Shape *s = L_arg_userdata(L, 1);
         valid_shape(L, s);
-        
+
         /* Get absolute position of shape's parent body. */
         vect_f pos = GetAbsolutePos(s->body);
- 
+
         assert(s->shape_type == SHAPE_RECTANGLE);
         ShapeDef def = shape_def(s);
         def.rect.l += pos.x;
         def.rect.r += pos.x;
         def.rect.b += pos.y;
         def.rect.t += pos.y;
-        
+
         L_push_BB(L, def.rect);
         return 1;
 }
@@ -1118,15 +1100,10 @@ static int
 LUA_GetImageSize(lua_State *L)
 {
         L_numarg_range(L, 1, 1);
-        
+
         /* Read image from file and create OpenGL texture. */
         Texture *tex = load_texture(L, 1);
-#if PLATFORM_IOS
-        if (config.screen_width > 500) {
-                L_push_vecti(L, (vect_i){tex->w / 2, tex->h / 2});
-                return 1;
-        }
-#endif
+
         L_push_vecti(L, (vect_i){tex->w, tex->h});
         return 1;
 }
@@ -1144,7 +1121,7 @@ LUA_GetTime(lua_State *L)
 {
         L_numarg_range(L, 1, 1);
         void *obj = L_arg_userdata(L, 1);
-        
+
         /* Now = (current step number) * (step duration in seconds) */
         Body *b = get_body(L, obj);
         float step_sec = b->world->step_sec;
@@ -1165,7 +1142,7 @@ LUA_GetSpriteList(lua_State *L)
         L_numarg_range(L, 1, 1);
         Tile *t = L_arg_userdata(L, 1);
         valid_tile(L, t);
-        
+
         if (t->sprite_list != NULL)
                 lua_pushlightuserdata(L, t->sprite_list);
         else
@@ -1186,14 +1163,14 @@ LUA_SetZoom(lua_State *L)
         L_numarg_range(L, 2, 2);
         Camera *cam = L_arg_userdata(L, 1);
         float zoom = L_arg_float(L, 2);
-        
+
         valid_camera(L, cam);
         info_assert_va(L, zoom > 0.0, "Zoom value (%f) must be positive.", zoom);
         if (zoom < 0.1)
                 zoom = 0.1;
         if (zoom > 100.9)
                 zoom = 100.9;
-        
+
         cam->zoom = zoom;
         return 0;
 }
@@ -1211,7 +1188,7 @@ LUA_SetStepC(lua_State *L)
         void *obj = L_arg_userdata(L, 1);
         StepFunction sf = L_arg_userdata(L, 2);
         intptr_t arg_id = L_arg_int(L, 3);
-        
+
         /* Set step function. */
         Body *body = get_body(L, obj);
         body->flags |= BODY_STEP_C;
@@ -1239,7 +1216,7 @@ LUA_SetStep(lua_State *L)
         intptr_t argID = L_arg_int(L, 3);
         info_assert(L, sf != 0 || argID == 0, "Step-function missing but user "
                     "arguments present.");
-                
+
         /* Set step function. */
         Body *body = get_body(L, obj);
         body->flags &= ~BODY_STEP_C;
@@ -1267,7 +1244,7 @@ LUA_SetAfterStep(lua_State *L)
         intptr_t argID = L_arg_int(L, 3);
         info_assert(L, sf != 0 || argID == 0, "Step-function missing but user "
                     "arguments present.");
-                
+
         /* Set step function. */
         Body *body = get_body(L, obj);
         body->flags &= ~BODY_AFTERSTEP_C;
@@ -1286,7 +1263,7 @@ LUA_GetStep(lua_State *L)
 {
         L_numarg_range(L, 1, 1);
         void *obj = L_arg_userdata(L, 1);
-        
+
         Body *body = get_body(L, obj);
         if (!body->step_func) {
                 lua_pushnil(L);
@@ -1295,7 +1272,7 @@ LUA_GetStep(lua_State *L)
                             "but user arguments present.");
                 return 2;
         }
-        
+
         /*
          * Push function pointer as userdata if step function is a C function,
          * or Lua function index otherwise.
@@ -1304,7 +1281,7 @@ LUA_GetStep(lua_State *L)
                 lua_pushlightuserdata(L, (void *)body->step_func);
         else
                 lua_pushinteger(L, body->step_func);
-        
+
         /* Push user argument index. */
         lua_pushinteger(L, body->step_cb_data);
         return 2;
@@ -1320,7 +1297,7 @@ LUA_GetAfterStep(lua_State *L)
 {
         L_numarg_range(L, 1, 1);
         void *obj = L_arg_userdata(L, 1);
-        
+
         Body *body = get_body(L, obj);
         if (!body->afterstep_func) {
                 lua_pushnil(L);
@@ -1376,13 +1353,13 @@ LUA_NextCamera(lua_State *L)
         L_numarg_range(L, 1, 1);
         Camera *cam = L_argdef_userdata(L, 1, NULL);
         valid_camera(L, cam);
-        
+
         /* Return next camera from list if it exists. */
         if (cam->next != NULL) {
                 lua_pushlightuserdata(L, cam->next);
                 return 1;
         }
-        
+
         /* Return first camera from list if it exists, or nil if it doesn't. */
         extern Camera *cam_list;
         if (cam_list != NULL)
@@ -1406,7 +1383,7 @@ LUA_Pause(lua_State *L)
 {
         L_numarg_range(L, 1, 1);
         void *obj = L_arg_userdata(L, 1);
-        
+
         switch (*(int *)obj) {
         case OBJTYPE_WORLD: {
                 valid_world(L, obj);
@@ -1440,7 +1417,7 @@ LUA_Resume(lua_State *L)
 {
         L_numarg_range(L, 1, 1);
         void *obj = L_arg_userdata(L, 1);
-        
+
         switch (*(int *)obj) {
         case OBJTYPE_WORLD: {
                 valid_world(L, obj);
@@ -1468,7 +1445,7 @@ LUA_Enable(lua_State *L)
 {
         L_numarg_range(L, 1, 1);
         void *obj = L_arg_userdata(L, 1);
-        
+
         switch (*(int *)obj) {
         case OBJTYPE_CAMERA: {
                 ((Camera *)obj)->disabled = 0;
@@ -1486,7 +1463,7 @@ LUA_Disable(lua_State *L)
 {
         L_numarg_range(L, 1, 1);
         void *obj = L_arg_userdata(L, 1);
-        
+
         switch (*(int *)obj) {
         case OBJTYPE_CAMERA: {
                 ((Camera *)obj)->disabled = 1;
@@ -1495,77 +1472,6 @@ LUA_Disable(lua_State *L)
         }
         objtype_error(L, obj);
 }
-
-#if TRACE_MAX
-
-/*
- * Record(body) -> now
- *
- * Start recording trace. Returns current body time.
- */
-static int
-LUA_Record(lua_State *L)
-{
-        L_numarg_range(L, 1, 1);
-        void *obj = L_arg_userdata(L, 1);
-        
-        Body *b = get_body(L, obj);
-        info_assert(L, !b->trace, "Body is already being recorded.");
-        body_start_recording(b);
-        
-        lua_pushnumber(L, b->step * b->world->step_sec);
-        return 1;
-}
-
-/*
- * Snapshot(body) -> now
- *
- * Record a single snapshot of body. Time of recorded snapshot (i.e., body's
- * present time) is returned.
- */
-static int
-LUA_Snapshot(lua_State *L)
-{
-        L_numarg_range(L, 1, 1);
-        void *obj = L_arg_userdata(L, 1);
-        
-        float now = body_snapshot(obj);
-        lua_pushnumber(L, now);
-        return 1;
-}
-
-/*
- * Rewind(body, time) -> rewind_time
- *
- * Rewind body to `time` seconds since its creation. The body is automatically
- * paused so that it can be fast-forwarded if necessary.
- *
- * Not all time values correspond directly to a saved state (trace). Thus
- * rewinding is not accurate and closest trace will be chosen. Rewind() returns
- * the time that the body is actually rewound to.
- */
-static int
-LUA_Rewind(lua_State *L)
-{
-        L_numarg_range(L, 2, 2);
-        void *obj = L_arg_userdata(L, 1);
-        float time = L_arg_float(L, 2);
-        info_assert(L, time >= 0.0, "Negative time value.");
-        
-        Body *b = get_body(L, obj);
-        info_assert(L, b->trace, "Body cannot be rewound because no "
-                    "trace/snapshots exist for it."); 
-                    
-        float rew_time;
-        body_pause(b);
-        if (body_rewind(b, time, &rew_time))
-                lua_pushnumber(L, rew_time);
-        else
-                lua_pushnil(L);
-        return 1;
-}
-
-#endif  /* TRACE_MAX */
 
 /*
  * SetBoundary(camera, boundingBox)
@@ -1583,7 +1489,7 @@ LUA_SetBoundary(lua_State *L)
         valid_camera(L, cam);
         BB bb_store;
         BB *bb = L_argptr_BB(L, 2, &bb_store);
-        
+
         if (bb != NULL) {
                 info_assert(L, bb_valid(*bb), "Invalid bounding box.");
                 info_assert(L, cam->size.x <= bb->r-bb->l &&
@@ -1591,7 +1497,7 @@ LUA_SetBoundary(lua_State *L)
                             "be bigger than camera-visible area size.");
         } else {
                 cam->box = (BB){0, 0, 0, 0};
-        }        
+        }
         return 0;
 }
 
@@ -1604,16 +1510,16 @@ static int
 LUA_Log(lua_State *L)
 {
         L_numarg_range(L, 1, 1);
-        
+
         /* Copy string into (next) console line buffer. */
         console.last_line = (console.last_line + 1) % CONSOLE_MAX_LINES;
         snprintf(console.buffer[console.last_line], sizeof(console.buffer[0]),
                  "%s", L_arg_cstr(L, 1));
-        
+
         /* Save log time. */
         extern uint64_t game_time;
         console.log_time[console.last_line] = game_time;
-        
+
         return 0;
 }
 
@@ -1628,7 +1534,7 @@ LUA_GetFrame(lua_State *L)
         L_numarg_range(L, 1, 1);
         Tile *t = L_arg_userdata(L, 1);
         valid_tile(L, t);
-        
+
         lua_pushnumber(L, tile_frame(t));
         return 1;
 }
@@ -1647,7 +1553,7 @@ LUA_SetFrame(lua_State *L)
         L_numarg_range(L, 2, 2);
         Tile *t = L_arg_userdata(L, 1);
         unsigned frame_index = L_arg_uint(L, 2);
-        
+
         valid_tile(L, t);
         info_assert(L, t->sprite_list, "Cannot set frame because tile has no sprite-list.");
         info_assert_va(L, frame_index < t->sprite_list->num_frames,
@@ -1678,7 +1584,7 @@ LUA_Animate(lua_State *L)
         uint8_t anim_type = L_arg_uint(L, 2);
         float FPS = L_arg_float(L, 3);
         float start_time = L_argdef_float(L, 4, 0.0);
-        
+
         valid_spritelist(L, t->sprite_list);
         unsigned num_frames = t->sprite_list->num_frames;
 #ifndef NDEBUG
@@ -1752,7 +1658,7 @@ LUA_AnimatingFrame(lua_State *L)
         L_numarg_range(L, 1, 1);
         Tile *t = L_arg_userdata(L, 1);
         valid_tile(L, t);
-        
+
         Property *anim = t->frame;
         if (anim == NULL) {
                 lua_pushboolean(L, 0);
@@ -1774,7 +1680,7 @@ LUA_StopAnimation(lua_State *L)
 {
         L_numarg_range(L, 1, 1);
         void *obj = L_arg_userdata(L, 1);
-        
+
         SetFrame(obj, GetFrame(obj));
         return 0;
 }
@@ -1795,8 +1701,8 @@ LUA_SetAnimPos(lua_State *L)
         L_numarg_range(L, 2, 2);
         Tile *t = L_arg_userdata(L, 1);
         valid_tile(L, t);
-        
-        int num_frames = t->sprite_list->num_frames;        
+
+        int num_frames = t->sprite_list->num_frames;
         float anim_pos = L_arg_float(L, 2);
         anim_pos -= floor(anim_pos);
         tile_set_frame(t, floor(anim_pos * (num_frames - 1)));
@@ -1813,7 +1719,7 @@ LUA_SetAngle(lua_State *L)
         void *obj = L_arg_userdata(L, 1);
         float angle = L_arg_float(L, 2);
         vect_f pivot = L_argdef_vectf(L, 3, (vect_f){0.0, 0.0});
-        
+
         valid_tile(L, obj);
         tile_set_angle(obj, pivot, angle);
         return 0;
@@ -1858,7 +1764,7 @@ LUA_FlipX(lua_State *L)
                 lua_pushboolean(L, (t->flags & TILE_FLIP_X));
                 return 1;
         }
-        
+
         int was_flipped = (t->flags & TILE_FLIP_X);
         if (L_arg_bool(L, 2)) {
                 t->flags |= TILE_FLIP_X;
@@ -1869,7 +1775,7 @@ LUA_FlipX(lua_State *L)
                 if (t->sprite_list != NULL && was_flipped)
                         flip_sprites(t, 1, 0);
         }
-        
+
         lua_pushboolean(L, (t->flags & TILE_FLIP_X));
         return 1;
 }
@@ -1888,12 +1794,12 @@ LUA_FlipY(lua_State *L)
         L_numarg_range(L, 1, 2);
         Tile *t = L_arg_userdata(L, 1);
         valid_tile(L, t);
-        
+
         if (lua_isnoneornil(L, 2)) {
                 lua_pushboolean(L, (t->flags & TILE_FLIP_Y));
                 return 1;
         }
-        
+
         int was_flipped = (t->flags & TILE_FLIP_Y);
         if (L_arg_bool(L, 2)) {
                 t->flags |= TILE_FLIP_Y;
@@ -1904,7 +1810,7 @@ LUA_FlipY(lua_State *L)
                 if (t->sprite_list != NULL && was_flipped)
                         flip_sprites(t, 0, 1);
         }
-        
+
         lua_pushboolean(L, (t->flags & TILE_FLIP_Y));
         return 1;
 }
@@ -1932,7 +1838,7 @@ LUA_SetDepth(lua_State *L)
         Tile *t = L_arg_userdata(L, 1);
         valid_tile(L, t);
         float depth = L_arg_float(L, 2);
-        
+
         t->depth = depth;
         return 0;
 }
@@ -1968,7 +1874,7 @@ LUA_GetPos(lua_State *L)
 {
         L_numarg_range(L, 1, 2);
         void *obj = L_arg_userdata(L, 1);
-        
+
         switch (*(int *)obj) {
         case OBJTYPE_BODY:
         case OBJTYPE_CAMERA: {
@@ -1999,7 +1905,7 @@ LUA_GetPrevPos(lua_State *L)
 {
         L_numarg_range(L, 1, 1);
         void *obj = L_arg_userdata(L, 1);
-        
+
         switch (*(int *)obj) {
         case OBJTYPE_BODY: {
                 valid_body(L, obj);
@@ -2032,7 +1938,7 @@ LUA_SetPos(lua_State *L)
         L_numarg_range(L, 2, 2);
         void *obj = L_arg_userdata(L, 1);
         vect_f pos = L_arg_vectf(L, 2);
-        
+
         switch (*(int *)obj) {
         case OBJTYPE_BODY: {
                 valid_body(L, obj);
@@ -2045,14 +1951,14 @@ LUA_SetPos(lua_State *L)
                 return 0;
         }
         case OBJTYPE_TILE: {
-                valid_tile(L, obj);                
+                valid_tile(L, obj);
                 tile_set_pos(obj, pos);
                 return 0;
         }
         case OBJTYPE_SHAPE: {
                 valid_shape(L, obj);
                 vect_i delta = (vect_i){posround(pos.x), posround(pos.y)};
-                
+
                 switch (((Shape *)obj)->shape_type) {
                 case SHAPE_RECTANGLE: {
                         ShapeDef def = shape_def(obj);
@@ -2086,7 +1992,7 @@ LUA_SetPosCentered(lua_State *L)
         L_numarg_range(L, 2, 2);
         void *obj = L_arg_userdata(L, 1);
         vect_f pos = L_arg_vectf(L, 2);
-        
+
         SetPosCentered(obj, pos);
         return 0;
 }
@@ -2100,7 +2006,7 @@ LUA_SetPosX(lua_State *L)
         L_numarg_range(L, 2, 2);
         void *obj = L_arg_userdata(L, 1);
         float value = L_arg_float(L, 2);
-        
+
         SetPosX(obj, value);
         return 0;
 }
@@ -2114,7 +2020,7 @@ LUA_SetPosY(lua_State *L)
         L_numarg_range(L, 2, 2);
         void *obj = L_arg_userdata(L, 1);
         float value = L_arg_float(L, 2);
-        
+
         SetPosY(obj, value);
         return 0;
 }
@@ -2131,7 +2037,7 @@ LUA_AnimatePos(lua_State *L)
         vect_f end = L_arg_vectf(L, 3);
         float duration = L_arg_float(L, 4);
         float start_time = L_argdef_float(L, 5, 0.0);
-        
+
         switch (*(int *)obj) {
         case OBJTYPE_TILE: {
                 valid_tile(L, obj);
@@ -2160,7 +2066,7 @@ LUA_GetVel(lua_State *L)
 {
         L_numarg_range(L, 1, 1);
         void *obj = L_arg_userdata(L, 1);
-        
+
         switch (*(int *)obj) {
         case OBJTYPE_BODY: {
                 valid_body(L, obj);
@@ -2190,13 +2096,13 @@ LUA_SetVel(lua_State *L)
         L_numarg_range(L, 2, 2);
         void *obj = L_arg_userdata(L, 1);
         vect_f vel = L_arg_vectf(L, 2);
-        
+
         switch (*(int *)obj) {
         case OBJTYPE_BODY: {
                 Body *body = obj;
                 valid_body(L, body);
                 body->vel = vel;
-                
+
                 /* Set standard step function if not already set. */
                 if (body->step_func == 0) {
                         body->step_func = (intptr_t)stepfunc_std;
@@ -2208,7 +2114,7 @@ LUA_SetVel(lua_State *L)
                 Camera *cam = obj;
                 valid_camera(L, cam);
                 cam->body.vel = vel;
-                
+
                 /* Set standard step function if not already set. */
                 if (cam->body.step_func == 0) {
                         cam->body.step_func = (intptr_t)stepfunc_std;
@@ -2226,7 +2132,7 @@ LUA_SetVelX(lua_State *L)
         L_numarg_range(L, 2, 2);
         void *obj = L_arg_userdata(L, 1);
         float value = L_arg_float(L, 2);
-        
+
         SetVel(obj, (vect_f){value, GetVel(obj).y});
         return 0;
 }
@@ -2237,7 +2143,7 @@ LUA_SetVelY(lua_State *L)
         L_numarg_range(L, 2, 2);
         void *obj = L_arg_userdata(L, 1);
         float value = L_arg_float(L, 2);
-        
+
         SetVel(obj, (vect_f){GetVel(obj).x, value});
         return 0;
 }
@@ -2254,13 +2160,13 @@ LUA_SetAcc(lua_State *L)
         L_numarg_range(L, 2, 2);
         void *obj = L_arg_userdata(L, 1);
         vect_f acc = L_arg_vectf(L, 2);
-        
+
         switch (*(int *)obj) {
         case OBJTYPE_BODY: {
                 Body *body = obj;
                 valid_body(L, body);
                 body->acc = acc;
-                
+
                 /* Set standard step function if not already set. */
                 if (body->step_func == 0) {
                         body->step_func = (intptr_t)stepfunc_std;
@@ -2272,7 +2178,7 @@ LUA_SetAcc(lua_State *L)
                 Camera *cam = obj;
                 valid_camera(L, cam);
                 cam->body.acc = acc;
-                
+
                 /* Set standard step function if not already set. */
                 if (cam->body.step_func == 0) {
                         cam->body.step_func = (intptr_t)stepfunc_std;
@@ -2297,7 +2203,7 @@ LUA_GetDeltaPos(lua_State *L)
 {
         L_numarg_range(L, 1, 1);
         void *obj = L_arg_userdata(L, 1);
-        
+
         vect_f delta;
         switch (*(int *)obj) {
         case OBJTYPE_BODY: {
@@ -2333,12 +2239,12 @@ LUA_GetSize(lua_State *L)
 {
         L_numarg_range(L, 1, 1);
         void *obj = L_arg_userdata(L, 1);
-        
+
         switch (*(int *)obj) {
         case OBJTYPE_CAMERA: {
                 Camera *cam = obj;
                 valid_camera(L, cam);
-                
+
                 L_push_vecti(L, (vect_i){
                         .x=(int)lroundf(cam->size.x / cam->zoom),
                         .y=(int)lroundf(cam->size.y / cam->zoom)
@@ -2348,7 +2254,7 @@ LUA_GetSize(lua_State *L)
         case OBJTYPE_TILE: {
                 Tile *t = obj;
                 valid_tile(L, t);
-                
+
                 vect_f size = tile_size(t);
                 if (size.x < 0) {
                         size.x = -size.x;
@@ -2381,7 +2287,7 @@ LUA_SetSize(lua_State *L)
         L_numarg_range(L, 2, 2);
         void *obj = L_arg_userdata(L, 1);
         vect_f size = L_arg_vectf(L, 2);
-        
+
         switch (*(int *)obj) {
         case OBJTYPE_TILE: {
                 valid_tile(L, obj);
@@ -2405,7 +2311,7 @@ LUA_AnimateSize(lua_State *L)
         vect_f end = L_arg_vectf(L, 3);
         float duration = L_arg_float(L, 4);
         float start_time = L_argdef_float(L, 5, 0.0);
-        
+
         tile_anim_size(t, type, end, duration, start_time);
         return 0;
 }
@@ -2418,10 +2324,10 @@ LUA_GetColor(lua_State *L)
 {
         L_numarg_range(L, 1, 1);
         Tile *t = L_arg_userdata(L, 1);
-        
+
         uint32_t c = tile_color(t);
         L_push_color(L, c);
-        
+
         return 1;
 }
 
@@ -2439,7 +2345,7 @@ LUA_SetColor(lua_State *L)
         L_numarg_range(L, 2, 2);
         void *obj = L_arg_userdata(L, 1);
         uint32_t c = L_arg_color(L, 2);
-        
+
         switch (*(int *)obj) {
         case OBJTYPE_TILE: {
                 valid_tile(L, obj);
@@ -2493,7 +2399,7 @@ LUA_AnimatingColor(lua_State *L)
 {
         L_numarg_range(L, 1, 1);
         void *obj = L_arg_userdata(L, 1);
-        
+
         switch (*(int *)obj) {
         case OBJTYPE_TILE: {
                 valid_tile(L, obj);
@@ -2526,7 +2432,7 @@ LUA_Blend(lua_State *L)
 {
         L_numarg_range(L, 2, 2);
         const char *modename = L_arg_cstr(L, 2);
-        
+
         unsigned mode;
         if (strcmp(modename, "default") == 0)
                 mode = TILE_BLEND_DEFAULT;
@@ -2544,7 +2450,7 @@ LUA_Blend(lua_State *L)
                 mode = TILE_BLEND_ALPHA;
         else
                 luaL_error(L, "Invalid blending mode name: `%s`.", modename);
-        
+
         /* Check if we have to change the default blending mode. */
         if (lua_isboolean(L, 1)) {
                 extern unsigned blend_mode_default;
@@ -2553,7 +2459,7 @@ LUA_Blend(lua_State *L)
                 blend_mode_default = mode;
                 return 0;
         }
-        
+
         /* Set tile blending mode. */
         Tile *t = L_arg_userdata(L, 1);
         valid_tile(L, t);
@@ -2579,17 +2485,17 @@ LUA_Link(lua_State *L)
         valid_body(L, parent);
         if (child->parent == parent)
                 return 0;       /* Already linked. */
-        
+
         /* Update child position so that it is relative to parent now. */
         vect_f parent_pos = body_absolute_pos(parent);
         vect_f child_pos = body_absolute_pos(child);
         vect_f diff = vect_f_sub(child_pos, parent_pos);
         SetPos(child, diff);
-        
+
         /* Remove child from current parent. */
         if (child->parent != NULL)
                 DL_DELETE(child->parent->children, child);
-                
+
         child->parent = parent;                 /* Set new parent. */
         DL_PREPEND(parent->children, child);    /* Add as new parent's child. */
         return 0;
@@ -2606,7 +2512,7 @@ LUA_Unlink(lua_State *L)
         L_numarg_range(L, 1, 1);
         Body *child = L_arg_userdata(L, 1);
         valid_body(L, child);
-        
+
         Body *parent = child->parent;
         Body *static_body = &child->world->static_body;
         info_assert(L, parent, "Body has no parent.");
@@ -2615,10 +2521,10 @@ LUA_Unlink(lua_State *L)
                          "world directly.");
                 return 0;
         }
-        
+
         vect_f abs_pos = body_absolute_pos(child); /* Position within world. */
         DL_DELETE(parent->children, child);        /* Remove from parent. */
-        
+
         /* Add as child to static body. */
         child->parent = static_body;
         DL_PREPEND(static_body->children, child);
@@ -2658,23 +2564,23 @@ static void
 clear_timer_state(Timer *t)
 {
         lua_State *L = L_state;
-        
+
         lua_getglobal(L, "eapi");
         L_get_strfield(L, -1, "idToObjectMap");
-        
+
         /* Unset timer function reference. */
         info_assert(L, t->func != 0, "No function.");
         lua_pushnumber(L, t->func);
         lua_pushnil(L);
         lua_rawset(L, -3);
-        
+
         /* Unset user argument reference. */
         if (t->data != 0) {
                 lua_pushnumber(L, t->data);
                 lua_pushnil(L);
                 lua_rawset(L, -3);
         }
-        
+
         lua_pop(L, 2);
 }
 
@@ -2697,22 +2603,22 @@ LUA_AddTimer(lua_State *L)
         float when = L_arg_float(L, 2);
         intptr_t func = L_arg_int(L, 3);
         intptr_t argID = L_arg_int(L, 4);
-        
+
         /* Add timer to body. */
         info_assert(L, when >= 0.0, "Negative time offset.");
         Body *b = get_body(L, obj);
         Timer *tmr = body_add_timer(b, obj, when, OBJTYPE_TIMER_LUA, func,
                                     argID);
-        
+
         /* Set cleanup function to avoid memory leaks in script. */
         tmr->clearfunc = clear_timer_state;
-        
+
         /* Set timer pointer. */
         lua_createtable(L, 4, 0);
         lua_pushinteger(L, 1);
         lua_pushlightuserdata(L, tmr);
         lua_rawset(L, -3);
-        
+
         /* Set timer ID. */
         lua_pushinteger(L, 2);
         lua_pushinteger(L, tmr->timer_id);
@@ -2733,24 +2639,24 @@ static int
 LUA_CancelTimer(lua_State *L)
 {
         L_numarg_range(L, 1, 1);
-        
+
         /* Ignore if argument is nil. */
         if (lua_isnil(L, 1))
                 return 0;
-        
+
         /* Get timer pointer. */
         L_get_intfield(L, 1, 1);
         Timer *timer = L_arg_userdata(L, 2);
-        
+
         /* Get timer ID. */
         L_get_intfield(L, 1, 2);
         unsigned timer_id = L_arg_uint(L, 3);
-        
+
         /* Ignore if timer was destroyed (check if mem is reused). */
         void *owner = timer->owner;
         if (owner == NULL || timer->timer_id != timer_id)
                 return 0;
-        
+
         switch (*(int *)owner) {
         case OBJTYPE_BODY: {
                 valid_body(L, owner);
@@ -2787,7 +2693,7 @@ LUA_Dump(lua_State *L)
         Shape *s = L_arg_userdata(L, 1);
         valid_shape(L, s);
         Body *body = s->body;
-        
+
         UT_string dump, tmp;
         utstring_init(&dump);
         utstring_init(&tmp);
@@ -2811,7 +2717,7 @@ LUA_Dump(lua_State *L)
         default:
                 luaL_error(L, "Unknown shape type: %d.", s->shape_type);
         }
-        
+
         /* Append group name. */
         utstring_printf(&dump, "\"");
         utstring_printf(&dump, s->group->name);
@@ -2839,10 +2745,10 @@ LUA_SelectShape(lua_State *L)
         World *world = L_arg_userdata(L, 1);
         vect_i point = L_arg_vecti(L, 2);
         const char *group_name = L_argdef_cstr(L, 3, NULL);
-        
+
         Shape *s = NULL;
         SelectShapes(world, point, group_name, &s, 1);
-        
+
         if (s == NULL)
                 lua_pushnil(L);
         else
@@ -2863,7 +2769,7 @@ LUA_SelectTiles(lua_State *L)
         valid_world(L, world);
         BB area = L_arg_BB(L, 2);
         Body *body = L_argdef_userdata(L, 3, NULL);
-                
+
         /* Look up nearby tiles from grid. */
         void *nearby[400];
         unsigned num_nearby = grid_lookup(&world->grid, area, nearby,
@@ -2879,7 +2785,7 @@ LUA_SelectTiles(lua_State *L)
                 valid_tile(L, t);
                 if (body != NULL && t->body != body)
                         continue;       /* Does not belong to requested body. */
-                
+
                 /* Add to result list if there's overlap with given area. */
                 vect_f sz = GetSize(t);
                 vect_f pos = GetPos(t);
@@ -2913,61 +2819,38 @@ LUA_DrawToTexture(lua_State *L)
         unsigned flags;
         char name[128];
         get_texture_spec(L, 1, name, sizeof(name), &flags);
-        
+
         /* Set texture size = screen size. */
         Texture *tex = texture_load_blank(name, flags);
         texture_set_size(tex, config.screen_width, config.screen_height);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, tex->pow_w, tex->pow_h, 0,
                      GL_RGB, GL_UNSIGNED_BYTE, NULL);
-        if (glGenerateMipmap != NULL && (flags & TEXFLAG_FILTER))
+        if (flags & TEXFLAG_FILTER)
                 glGenerateMipmap(GL_TEXTURE_2D);
-                
-        /* If texture->framebuffer support, use it. Otherwise glReadPixels(). */
-        if (glGenFramebuffers != NULL) {
-                /* Create and bind framebuffer. */
-                GLuint framebuf;
-                glGenFramebuffers(1, &framebuf);
-                glBindFramebuffer(GL_FRAMEBUFFER_EXT, framebuf);
-                assert(tex->id);
-                glFramebufferTexture2D(GL_FRAMEBUFFER_EXT,
-                                       GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_2D,
-                                       tex->id, 0);
-                
-                /* Draw everything as usual. */
-                extern Camera *cam_list;
-                glClear(GL_COLOR_BUFFER_BIT);
-                for (Camera *cam = cam_list; cam != NULL; cam = cam->next) {
-                        if (!cam->disabled)
-                                render_to_framebuffer(cam);
-                }
-                
-                /* Dispose of framebuffer. */
-                glDeleteFramebuffers(1, &framebuf);
 
-                /* Restore main framebuffer. */
-                extern GLuint main_framebuffer;
-                glBindFramebuffer(GL_FRAMEBUFFER_EXT, main_framebuffer);
-                return 0;
+        /* Create and bind framebuffer. */
+        GLuint framebuf;
+        glGenFramebuffers(1, &framebuf);
+        glBindFramebuffer(GL_FRAMEBUFFER_EXT, framebuf);
+        assert(tex->id);
+        glFramebufferTexture2D(GL_FRAMEBUFFER_EXT,
+                                GL_COLOR_ATTACHMENT0_EXT, GL_TEXTURE_2D,
+                                tex->id, 0);
+
+        /* Draw everything as usual. */
+        extern Camera *cam_list;
+        glClear(GL_COLOR_BUFFER_BIT);
+        for (Camera *cam = cam_list; cam != NULL; cam = cam->next) {
+                if (!cam->disabled)
+                        render_to_framebuffer(cam);
         }
-        
-        /* Read framebuffer into buffer then write into texture. */
-        static unsigned char *pixels, *flipped;
-        unsigned rowsz = tex->w * 3;
-        if (pixels == NULL) {
-                pixels = mem_alloc(rowsz * tex->h, "glReadPixels buffer");
-                flipped = mem_alloc(rowsz * tex->h, "glReadPixels flipped");
-        }
-        glReadPixels(0, 0, tex->w, tex->h, GL_RGB, GL_UNSIGNED_BYTE, pixels);
-        
-        /* Flip texture vertically. */
-        unsigned char *ptr = pixels;
-        for (int i = tex->h - 1; i >= 0; --i) {
-                memcpy(flipped + i * rowsz, ptr, rowsz);
-                ptr += rowsz;
-        }
-        
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, tex->w, tex->h, GL_RGB,
-                        GL_UNSIGNED_BYTE, flipped);
+
+        /* Dispose of framebuffer. */
+        glDeleteFramebuffers(1, &framebuf);
+
+        /* Restore main framebuffer. */
+        extern GLuint main_framebuffer;
+        glBindFramebuffer(GL_FRAMEBUFFER_EXT, main_framebuffer);
         return 0;
 }
 
@@ -3035,57 +2918,57 @@ LUA_Collide(lua_State *L)
         int priority = L_argdef_int(L, 6, 0);
         intptr_t argID = L_argdef_int(L, 7, 0);
         assert(cf || (!update && !priority));
-        
+
         /* Create group A if it doesn't exist. */
         Group *groupA;
         HASH_FIND_STR(w->groups, groupname_a, groupA);
         if (groupA == NULL) {
                 extern mem_pool mp_group;
                 groupA = mp_alloc(&mp_group);
-                
+
                 info_assert_va(L, strlen(groupname_a) < sizeof(groupA->name),
                                "Shape group name length exceeds maximum value "
                                "(%d).", sizeof(groupA->name));
                 strcpy(groupA->name, groupname_a);
-                
+
                 groupA->index = w->next_group_id++;
                 assert(groupA->index < SHAPEGROUPS_MAX);
                 HASH_ADD_STR(w->groups, name, groupA);
         }
-        
+
         /* Create group B if it doesn't exist. */
         Group *groupB;
         HASH_FIND_STR(w->groups, groupname_b, groupB);
         if (groupB == NULL) {
                 extern mem_pool mp_group;
                 groupB = mp_alloc(&mp_group);
-                
+
                 info_assert_va(L, strlen(groupname_b) < sizeof(groupB->name),
                                "Shape group name length exceeds maximum value "
                                "(%d).", sizeof(groupB->name));
                 strcpy(groupB->name, groupname_b);
-                
+
                 groupB->index = w->next_group_id++;
                 assert(groupB->index < SHAPEGROUPS_MAX);
                 HASH_ADD_STR(w->groups, name, groupB);
         }
-        
+
         /* Get handler structure pointer from `handler_map` array. */
         Handler *handler = &w->handler_map[groupA->index][groupB->index];
-        
+
         /* Each group remembers how many handlers we have registered for it. */
         if (handler->func == 0 && cf != 0)
                 groupA->num_handlers++;
         else if (handler->func != 0 && cf == 0)
                 groupA->num_handlers--;
-        
+
         /* Set handler data. */
         handler->type = HANDLER_LUA;
         handler->func = cf;
         handler->update = update;
         handler->priority = priority;
         handler->data = argID;
-        
+
         return 0;
 }
 
@@ -3118,7 +3001,7 @@ LUA_Destroy(lua_State *L)
 {
         L_numarg_range(L, 1, 1);
         void *obj = L_arg_userdata(L, 1);
-        
+
         switch (*(int *)obj) {
         case OBJTYPE_BODY: {
                 valid_body(L, obj);
@@ -3176,9 +3059,28 @@ static int
 LUA_Quit(lua_State *L)
 {
         UNUSED(L);
+        // exit is disabled for web
+        // L_numarg_range(L, 0, 0);
+        // log_msg("User script called Quit()");
+        // exit(EXIT_SUCCESS);
+        return 0;
+}
+
+static int
+LUA_SyncFS(lua_State *L)
+{
+        UNUSED(L);
         L_numarg_range(L, 0, 0);
-        log_msg("User script called Quit()");
-        exit(EXIT_SUCCESS);
+
+        // Synchronize MEMFS back to IndexedDB
+        EM_ASM(
+            FS.syncfs(false, function (err) {
+                if (err) console.error('Error syncing filesystem:', err);
+                else console.log('Data saved to IndexedDB');
+            });
+        );
+
+        return 0;
 }
 
 #if ENABLE_AUDIO
@@ -3212,7 +3114,7 @@ LUA_PlaySound(lua_State *L)
                        "Volume out of range.", volume);
         int fade_in = round(L_argdef_float(L, 5, 0.0) * 1000.0);
         info_assert(L, fade_in >= 0, "Invalid fade-in time.");
-        
+
         /* World or no world. */
         World *world = NULL;
         if (lua_islightuserdata(L, 1)) {
@@ -3223,13 +3125,13 @@ LUA_PlaySound(lua_State *L)
                             "First argument should be either either world or "
                             "false.");
         }
-                        
+
         /* Start playing. Use world pointer as group number. */
         int channel;
         unsigned sound_id;
         audio_play(filename, (uintptr_t)world, volume, loops, fade_in,
                    &sound_id, &channel);
-        
+
         /* Return sound handle = {soundID=sound_id, channel=ch}. */
         lua_createtable(L, 0, 2);
         lua_pushstring(L, "soundID");
@@ -3266,7 +3168,7 @@ static int
 LUA_FadeSound(lua_State *L)
 {
         L_numarg_range(L, 2, 2);
-        
+
         /* Extract fade-out time and convert to milliseconds. */
         int fade_time = round(L_arg_float(L, 2) * 1000.0);
         info_assert(L, fade_time >= 0, "Fade out time must not be negative.");
@@ -3285,7 +3187,7 @@ LUA_FadeSound(lua_State *L)
         case LUA_TLIGHTUSERDATA: {
                 World *world = L_arg_userdata(L, 1);
                 valid_world(L, world);
-                
+
                 if (fade_time > 0)
                         audio_fadeout_group((uintptr_t)world, fade_time);
                 else
@@ -3310,11 +3212,11 @@ static int
 LUA_SetVolume(lua_State *L)
 {
         L_numarg_range(L, 2, 2);
-        
+
         int volume = (int)lroundf(L_arg_float(L, 2) * MIX_MAX_VOLUME);
         info_assert(L, volume >= 0 && volume <= MIX_MAX_VOLUME, "Volume out of "
             "range.");
-        
+
         switch (lua_type(L, 1)) {
         case LUA_TTABLE: {
                 unsigned sound_id;
@@ -3357,7 +3259,7 @@ LUA_BindVolume(lua_State *L)
         luaL_checktype(L, 3, LUA_TLIGHTUSERDATA);
         luaL_checktype(L, 4, LUA_TNUMBER);
         luaL_checktype(L, 5, LUA_TNUMBER);
-        
+
         /* Extract source body. */
         Body *source;
         void *obj = L_arg_userdata(L, 2);
@@ -3372,7 +3274,7 @@ LUA_BindVolume(lua_State *L)
                 objtype_error(L, obj);
         }
         valid_body(L, source);
-        
+
         /* Extract listener body. */
         Body *listener;
         obj = L_arg_userdata(L, 3);
@@ -3387,7 +3289,7 @@ LUA_BindVolume(lua_State *L)
                 objtype_error(L, obj);
         }
         valid_body(L, listener);
-        
+
         /* Extract and verify distances. */
         float dist_maxvol = lua_tonumber(L, 4);
         float dist_silence = lua_tonumber(L, 5);
@@ -3395,7 +3297,7 @@ LUA_BindVolume(lua_State *L)
                  "negative.");
         info_assert(L, dist_silence > dist_maxvol, "Silence distance must be "
                  "greater than max volume distance");
-        
+
         unsigned sound_id;
         int channel;
         extract_from_sound_handle(L, 1, &sound_id, &channel);
@@ -3445,11 +3347,11 @@ static int
 LUA_FadeMusic(lua_State *L)
 {
         L_numarg_range(L, 1, 1);
-        
+
         /* Extract fade-out time and convert to milliseconds. */
         int fade_time = round(L_arg_float(L, 1) * 1000.0);
         info_assert(L, fade_time >= 0, "Fade out time must not be negative.");
-        
+
         audio_music_fadeout(fade_time);
         return 0;
 }
@@ -3460,15 +3362,15 @@ LUA_FadeMusic(lua_State *L)
 static int
 LUA_SetMusicVolume(lua_State *L)
 {
-        L_numarg_range(L, 1, 3);        
+        L_numarg_range(L, 1, 3);
         int volume = round(L_arg_float(L, 1) * MIX_MAX_VOLUME);
         float time = L_argdef_float(L, 2, 0.0);
         float delay = L_argdef_float(L, 3, 0.0);
-        
+
         info_assert(L, volume >= 0 && volume <= MIX_MAX_VOLUME, "Volume out of range.");
         int time_ms = round(time * 1000.0);
         int delay_ms = round(delay * 1000.0);
-                
+
         audio_music_set_volume(volume, time_ms, delay_ms);
         return 0;
 }
@@ -3493,8 +3395,6 @@ LUA_ResumeMusic(lua_State *L)
 
 #endif
 
-static long (*random_func)(void) = rand_eglibc;
-
 /*
  * RandomSeed(seed, system)
  *
@@ -3507,17 +3407,9 @@ static long (*random_func)(void) = rand_eglibc;
 static int
 LUA_RandomSeed(lua_State *L)
 {
-        L_numarg_range(L, 1, 2);
+        L_numarg_range(L, 1, 1);
         unsigned seed = L_arg_uint(L, 1);
-        int system = L_argdef_bool(L, 2, 0);
-        
-        if (system) {
-                random_func = random;
-                srandom(seed);
-        } else {
-                random_func = rand_eglibc;
-                srand_eglibc(seed);
-        }
+        srand_eglibc(seed);
         return 0;
 }
 
@@ -3531,7 +3423,7 @@ static int
 LUA_Random(lua_State *L)
 {
         L_numarg_range(L, 0, 0);
-        lua_pushnumber(L, random_func());
+        lua_pushnumber(L, rand_eglibc());
         return 1;
 }
 
@@ -3578,7 +3470,7 @@ eapi_register(lua_State *L)
         lua_getglobal(L, "eapi");               /* ... eapi */
         eapi_index = lua_gettop(L);
         L_state = L;
-        
+
         /* Input API. */
 #if ENABLE_KEYS
         EAPI_SET_FUNC("__BindKeyboard",  LUA_BindKeyboard);
@@ -3610,16 +3502,16 @@ eapi_register(lua_State *L)
         EAPI_SET_FUNC("NewSpriteList",   LUA_NewSpriteList);
         EAPI_SET_FUNC("ChopImage",       LUA_ChopImage);
         EAPI_SET_FUNC("Clone",           LUA_Clone);
-        
+
         /* Destroy objects. */
         EAPI_SET_FUNC("__Clear",         LUA_Clear);
         EAPI_SET_FUNC("Destroy",         LUA_Destroy);
         EAPI_SET_FUNC("Quit",            LUA_Quit);
-        
+
         /* Timers. */
         EAPI_SET_FUNC("__AddTimer",      LUA_AddTimer);
         EAPI_SET_FUNC("CancelTimer",     LUA_CancelTimer);
-        
+
         /* Step/after-step functions. */
         EAPI_SET_FUNC("__SetStep",       LUA_SetStep);
         EAPI_SET_FUNC("__SetAfterStep",  LUA_SetAfterStep);
@@ -3627,11 +3519,11 @@ eapi_register(lua_State *L)
         EAPI_SET_FUNC("__GetAfterStep",  LUA_GetAfterStep);
         EAPI_SET_FUNC("__SetStepC",      LUA_SetStepC);
         //EAPI_SET_FUNC("SetAfterStepC", LUA_SetAfterStepC);
-        
+
         /* Link/unlink bodies. */
         EAPI_SET_FUNC("Link",            LUA_Link);
         EAPI_SET_FUNC("Unlink",          LUA_Unlink);
-        
+
         /* Collisions and selection. */
         EAPI_SET_FUNC("__Collide",       LUA_Collide);
         EAPI_SET_FUNC("GetGroup",        LUA_GetGroup);
@@ -3642,7 +3534,7 @@ eapi_register(lua_State *L)
         /* Random number generator. */
         EAPI_SET_FUNC("Random",          LUA_Random);
         EAPI_SET_FUNC("RandomSeed",      LUA_RandomSeed);
-                        
+
         /* Position. */
         EAPI_SET_FUNC("SetPos",          LUA_SetPos);
         EAPI_SET_FUNC("SetPosX",         LUA_SetPosX);
@@ -3652,39 +3544,39 @@ eapi_register(lua_State *L)
         EAPI_SET_FUNC("GetPrevPos",      LUA_GetPrevPos);
         EAPI_SET_FUNC("GetDeltaPos",     LUA_GetDeltaPos);
         EAPI_SET_FUNC("AnimatePos",      LUA_AnimatePos);
-        
+
         /* Velocity. */
         EAPI_SET_FUNC("GetVel",          LUA_GetVel);
         EAPI_SET_FUNC("SetVel",          LUA_SetVel);
         EAPI_SET_FUNC("SetVelX",         LUA_SetVelX);
         EAPI_SET_FUNC("SetVelY",         LUA_SetVelY);
-        
+
         /* Acceleration. */
         EAPI_SET_FUNC("SetAcc",          LUA_SetAcc);
-        
+
         /* Tile flip, depth, and blending mode. */
         EAPI_SET_FUNC("Blend",           LUA_Blend);
         EAPI_SET_FUNC("FlipX",           LUA_FlipX);
         EAPI_SET_FUNC("FlipY",           LUA_FlipY);
         EAPI_SET_FUNC("GetDepth",        LUA_GetDepth);
         EAPI_SET_FUNC("SetDepth",        LUA_SetDepth);
-        
+
         /* Color. */
         EAPI_SET_FUNC("GetColor",       LUA_GetColor);
         EAPI_SET_FUNC("SetColor",       LUA_SetColor);
         EAPI_SET_FUNC("AnimateColor",   LUA_AnimateColor);
         EAPI_SET_FUNC("AnimatingColor", LUA_AnimatingColor);
-        
+
         /* Size. */
         EAPI_SET_FUNC("GetSize",        LUA_GetSize);
         EAPI_SET_FUNC("SetSize",        LUA_SetSize);
         EAPI_SET_FUNC("AnimateSize",    LUA_AnimateSize);
-        
+
         /* Angle. */
         //EAPI_SET_FUNC("GetAngle",     LUA_GetAngle);
         EAPI_SET_FUNC("SetAngle",       LUA_SetAngle);
         EAPI_SET_FUNC("AnimateAngle",   LUA_AnimateAngle);
-                        
+
         /* Frame animation. */
         EAPI_SET_FUNC("GetFrame",       LUA_GetFrame);
         EAPI_SET_FUNC("SetFrame",       LUA_SetFrame);
@@ -3693,7 +3585,7 @@ eapi_register(lua_State *L)
         EAPI_SET_FUNC("AnimatingFrame", LUA_AnimatingFrame);
         EAPI_SET_FUNC("StopAnimation",  LUA_StopAnimation);
         EAPI_SET_FUNC("SetAnimPos",     LUA_SetAnimPos);
-        
+
         /* Get values. */
         EAPI_SET_FUNC("GetWorld",       LUA_GetWorld);
         EAPI_SET_FUNC("GetBody",        LUA_GetBody);
@@ -3702,21 +3594,10 @@ eapi_register(lua_State *L)
         EAPI_SET_FUNC("GetTime",        LUA_GetTime);
         EAPI_SET_FUNC("GetSpriteList",  LUA_GetSpriteList);
         EAPI_SET_FUNC("SetSpriteList",  LUA_SetSpriteList);
-      
-        /* Recording/rewinding time. */
-#if TRACE_MAX
+
         EAPI_SET_FUNC("Pause",          LUA_Pause);
         EAPI_SET_FUNC("Resume",         LUA_Resume);
-        EAPI_SET_FUNC("Record",         LUA_Record);
-        EAPI_SET_FUNC("Snapshot",       LUA_Snapshot);
-        EAPI_SET_FUNC("Rewind",         LUA_Rewind);
-#else
-        EAPI_SET_FUNC("Pause",          LUA_Pause);
-        EAPI_SET_FUNC("Resume",         LUA_Resume);
-        EAPI_SET_FUNC("Record",         LUA_Dummy);
-        EAPI_SET_FUNC("Snapshot",       LUA_Dummy);
-        EAPI_SET_FUNC("Rewind",         LUA_Dummy);
-#endif
+
         /* Misc. */
         EAPI_SET_FUNC("ShowCursor",     LUA_ShowCursor);
         EAPI_SET_FUNC("HideCursor",     LUA_HideCursor);
@@ -3727,6 +3608,7 @@ eapi_register(lua_State *L)
         EAPI_SET_FUNC("SetBoundary",    LUA_SetBoundary);
         EAPI_SET_FUNC("What",           LUA_What);
         EAPI_SET_FUNC("Log",            LUA_Log);
+        EAPI_SET_FUNC("SyncFS",         LUA_SyncFS);
 
         EAPI_SET_FUNC("Fractal",	LUA_Fractal);
 
@@ -3737,7 +3619,7 @@ eapi_register(lua_State *L)
                 EAPI_SET_FUNC("FadeSound",       LUA_FadeSound);
                 EAPI_SET_FUNC("SetVolume",       LUA_SetVolume);
                 EAPI_SET_FUNC("BindVolume",      LUA_BindVolume);
-                
+
                 EAPI_SET_FUNC("PlayMusic",       LUA_PlayMusic);
                 EAPI_SET_FUNC("FadeMusic",       LUA_FadeMusic);
                 EAPI_SET_FUNC("SetMusicVolume",  LUA_SetMusicVolume);
@@ -3750,14 +3632,14 @@ eapi_register(lua_State *L)
                 EAPI_SET_FUNC("FadeSound",       LUA_Dummy);
                 EAPI_SET_FUNC("SetVolume",       LUA_Dummy);
                 EAPI_SET_FUNC("BindVolume",      LUA_Dummy);
-                
+
                 EAPI_SET_FUNC("PlayMusic",       LUA_Dummy);
                 EAPI_SET_FUNC("FadeMusic",       LUA_Dummy);
                 EAPI_SET_FUNC("SetMusicVolume",  LUA_Dummy);
                 EAPI_SET_FUNC("PauseMusic",      LUA_Dummy);
                 EAPI_SET_FUNC("ResumeMusic",     LUA_Dummy);
         }
-        
+
         /* Animation types. */
         EAPI_SET_INT("ANIM_LOOP",               ANIM_LOOP);
         EAPI_SET_INT("ANIM_CLAMP",              ANIM_CLAMP);
@@ -3766,15 +3648,13 @@ eapi_register(lua_State *L)
         EAPI_SET_INT("ANIM_CLAMP_EASEINOUT",    ANIM_CLAMP_EASEINOUT);
         EAPI_SET_INT("ANIM_REVERSE_CLAMP",      ANIM_REVERSE_CLAMP);
         EAPI_SET_INT("ANIM_REVERSE_LOOP",       ANIM_REVERSE_LOOP);
-        
+
         /* Step functions. */
         EAPI_SET_USERDATA("STEPFUNC_STD",       stepfunc_std);
         EAPI_SET_USERDATA("STEPFUNC_ROT",       stepfunc_rot);
-        
+
         /* Load the part of eapi interface that lives in eapi.lua. */
         extern int errfunc_index;
         if ((luaL_loadfile(L, "eapi.lua") || lua_pcall(L, 0, 0, errfunc_index)))
                 fatal_error("[Lua] %s", lua_tostring(L, -1));
 }
-
-#endif  /* ENABLE_LUA */
