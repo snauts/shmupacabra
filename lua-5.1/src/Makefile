@@ -8,7 +8,7 @@
 PLAT= none
 
 CC= emcc
-CFLAGS= -g -Wall -Wno-misleading-indentation $(MYCFLAGS)
+CFLAGS= -Oz -Wall -Wno-misleading-indentation $(MYCFLAGS)
 AR= emar rcu
 RANLIB= emranlib
 RM= rm -f
