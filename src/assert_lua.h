@@ -4,8 +4,6 @@
 #include "common.h"
 #include <stdarg.h>
 
-#if ENABLE_LUA
-
 #ifndef NDEBUG
 
 #define info_assert_va(L, cond, fmt, ...)				    \
@@ -30,7 +28,5 @@ do {                                                                    \
 #define info_assert_va(...)     ((void)0)
 
 #endif  /* !NDEBUG */
-
-#endif  /* ENABLE_LUA */
 
 #endif  /* GAME2D_ASSERT_LUA_H */

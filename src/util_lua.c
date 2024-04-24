@@ -1,7 +1,5 @@
 #include "common.h"
 
-#if ENABLE_LUA
-
 #include <assert.h>
 #include <math.h>
 #include <lua.h>
@@ -462,6 +460,3 @@ L_push_boolpair(lua_State *L, int first, int second)
         lua_pushboolean(L, second);
         lua_settable(L, -3);
 }
-
-#endif
-

@@ -39,15 +39,6 @@ enum {
         TILE_BLEND_ALPHA        = 6<<BLEND_SHIFT
 };
 
-#if TRACE_MAX
-/*
- * TileState records tile state at a given moment in time.
- */
-typedef struct {
-        Property *pos, *size, *frame, *color, *angle; 
-} TileState;
-#endif
-
 /*
  * A tile is like a canvas: drawing area specified by position and size.
  * A list of sprites (SpriteList) is always bound to a tile. One frame from this
@@ -70,9 +61,6 @@ typedef struct Tile_t {
         float           depth;                  /* Determines drawing order. */
         unsigned        flags;
         
-#if TRACE_MAX
-        TileState       *trace;
-#endif
         GridObject      go;                     /* Tile can be added to grid. */
         struct Tile_t   *prev, *next;           /* For use in lists. */
 } Tile;
@@ -82,7 +70,6 @@ int      tile_filter(void *ptr);
 Tile    *tile_new(Body *, vect_f pos, vect_f size, float depth, int grid_store);
 Tile    *tile_clone(Body *parent, const Tile *orig);
 void     tile_free(Tile *);
-void     tile_record_trace(Tile *, unsigned trace_index);
 
 #if ENABLE_TILE_GRID
 void     tile_bb_changed(Tile *);

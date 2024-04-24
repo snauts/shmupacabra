@@ -1,7 +1,7 @@
 #ifndef GAME2D_SPRITELIST_H
 #define GAME2D_SPRITELIST_H
 
-#include "OpenGL_include.h"
+#include <SDL_opengl.h>
 #include "uthash_tuned.h"
 
 struct Texture_t;

@@ -47,11 +47,7 @@ void main_loop() {
         bind_main_framebuffer();
         run_game(L);
         draw_main_framebuffer();
-#if ENABLE_SDL2
         SDL_GL_SwapWindow(win);
-#else
-        SDL_GL_SwapBuffers();
-#endif
 }
 
 EMSCRIPTEN_KEEPALIVE
@@ -72,11 +68,7 @@ int main()
 
         /* Print SDL version. */
         SDL_version sdl_version;
-#if ENABLE_SDL2
         SDL_GetVersion(&sdl_version);
-#else
-        SDL_VERSION(&sdl_version);
-#endif
         log_msg("SDL version: %u.%u.%u", sdl_version.major, sdl_version.minor,
                 sdl_version.patch);
 

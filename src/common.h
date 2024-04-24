@@ -7,32 +7,11 @@
 typedef unsigned int uint;
 
 #include <stdint.h>
-
-#if ENABLE_LUA
-  #include <lua.h>
-#else
-  typedef int lua_State;
-#endif
-
-#if ENABLE_SQLITE
-  #include <sqlite3.h>
-#else
-  typedef int sqlite3;
-  typedef int sqlite3_stmt;
-#endif
+#include <lua.h>
 
 #if !ENABLE_AUDIO
   typedef int Sound;
 #endif
-
-/*
- * snprintf() is not available on Windows.
- */
-#ifdef _WIN32
-  #define snprintf(str, n, fmt, args...) sprintf(str, fmt, ## args)
-  #define srandom srand_eglibc
-  #define random rand_eglibc
-#endif /* Windows 32-bit. */
 
 /* Maximum value, or "infinity", for 64-bit unsigned integer. */
 #define UINT64_INF ((uint64_t)-1)

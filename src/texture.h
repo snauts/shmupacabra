@@ -1,8 +1,8 @@
 #ifndef GAME2D_TEXTURE_H
 #define GAME2D_TEXTURE_H
 
-#include "OpenGL_include.h"
 #include <SDL_image.h>
+#include <SDL_opengl.h>
 #include "common.h"
 #include "uthash_tuned.h"
 

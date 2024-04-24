@@ -49,11 +49,14 @@ run_game(lua_State *L)
         
         /* Calculate frames per second. */
         fps_count++;
-        if (now - fps_time >= config.FPSUpdateInterval) {
+        if (now - fps_time >= config.FPSUpdateInterval && config.debug) {
                 frames_per_second = fps_count*1000.0 / (now - fps_time);
                 fps_time = now;
                 fps_count = 0;
-                //log_msg("FPS: %.2f", frames_per_second);
+		extern int total_tile_count;
+                log_msg("FPS: %.2f, tiles=%d", 
+			frames_per_second,
+			total_tile_count);
         }
         
         process_events(L);

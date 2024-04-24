@@ -28,8 +28,7 @@ void             BindTouchUp(Camera *cam, TouchHandler handler, intptr_t);
 void             UnbindTouches(Camera *cam);
 
 /* Create objects. */
-World           *NewWorld(const char *name, unsigned step, BB area,
-                          unsigned grid_cell_size, unsigned trace_skip);
+World           *NewWorld(const char *name, unsigned step, BB area, unsigned grid_cell_size);
 Body            *NewBody(void *parent, vect_f pos);
 Camera          *NewCamera(World *, vect_f, const vect_i *, const BB *, int);
 Shape           *NewShape(void *, vect_f, BB, const char *);

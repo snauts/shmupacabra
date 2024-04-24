@@ -3,8 +3,6 @@
 
 #include "common.h"
 
-#if ENABLE_LUA
-
 #include <lua.h>
 #include <lauxlib.h>
 #include <stdlib.h>
@@ -88,7 +86,5 @@ vect_i           L_getstk_vecti(lua_State *L, int index);
 float            L_getstk_float(lua_State *L, int index);
 void             L_getstk_boolpair(lua_State *L, int index, int *first, int *second);
 void             L_getstk_intpair(lua_State *L, int index, int *first, int *second);
-
-#endif  /* ENABLE_LUA */
 
 #endif /* GAME2D_UTIL_LUA_H */

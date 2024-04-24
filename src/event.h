@@ -8,16 +8,6 @@
 
 struct Camera_t;
 
-#if !ENABLE_SDL_VIDEO
-typedef struct HackEvent_t {
-        SDL_Event ev;
-        struct HackEvent_t *prev, *next;
-} HackEvent;
-#endif
-
-
-
-
 /*
  *
  * TOUCH
@@ -33,9 +23,9 @@ typedef struct HackEvent_t {
  */
 typedef struct {
         SDL_TouchID id;
-        
+
         vect_i   first_pos;     /* The very first recorded position. */
-        
+
         unsigned num_pos;       /* Number of recorded positions. */
         unsigned pos_index;     /* Last position index within `pos` array. */
         vect_i   pos[100];      /* Last 100 positions. */
@@ -60,26 +50,12 @@ void    clear_touches(void);
 typedef void * TouchHandler;
 #endif  /* ENABLE_TOUCH */
 
-
-
-
-
 /*
  *
  * KEYS
  *
  */
 #if ENABLE_KEYS
-
-#if !ENABLE_SDL2
-
-typedef SDL_keysym SDL_Keysym;
-#define SDL_SCANCODE_UNKNOWN 0
-#define SDL_NUM_SCANCODES 512
-
-const char   *SDL_GetScancodeName(SDL_Scancode scancode);
-SDL_Scancode  SDL_GetScancodeFromName(const char *name);
-#endif  /* !ENABLE_SDL2 */
 
 /* Key handling function type. */
 typedef void (*KeyHandler)(SDL_Keysym key, int key_down, intptr_t data);
@@ -89,9 +65,6 @@ typedef void (*KeyHandler)(SDL_Keysym key, int key_down, intptr_t data);
 typedef void * KeyHandler;
 
 #endif  /* !ENABLE_KEYS */
-
-
-
 
 /*
  *
@@ -103,10 +76,6 @@ typedef void * KeyHandler;
 void    open_joysticks(void);
 
 #endif  /* ENABLE_JOYSTICK */
-
-
-
-
 
 /*
  *
@@ -128,7 +97,6 @@ typedef void * MouseClickHandler;
 typedef void * MouseMoveHandler;
 
 #endif  /* !ENABLE_MOUSE */
-
 
 enum {
         EVFUNC_TYPE_NONE   = 0,         /* This MUST be zero. */

@@ -1,6 +1,7 @@
 #include <assert.h>
-#include "audio.h"
+#include <SDL_opengl.h>
 #include "OpenGL_include.h"
+#include "audio.h"
 #include "config.h"
 #include "eapi_C.h"
 #include "log.h"
@@ -11,10 +12,6 @@
 #include "world.h"
 #include "uthash_tuned.h"
 #include "utlist.h"
-
-#if PLATFORM_IOS
-  #include "glue.h"
-#endif
 
 #define L (NULL)
 
@@ -135,7 +132,7 @@ void
 BindKeyboard(KeyHandler handler, intptr_t data)
 {
         extern EventFunc key_bind;
-        
+
         key_bind.func.key_func = handler;
         key_bind.callback_data = data;
 }
@@ -177,7 +174,7 @@ BindTouchDown(Camera *cam, TouchHandler handler, intptr_t data)
 {
         valid_camera(L, cam);
         assert(handler);
-        
+
         EventFunc *bind = &cam->touchdown_bind;
         bind->type = (handler == NULL) ? EVFUNC_TYPE_NONE : EVFUNC_TYPE_C;
         bind->func.touch_func = handler;
@@ -199,7 +196,7 @@ BindTouchMove(Camera *cam, TouchHandler handler, intptr_t data)
 {
         valid_camera(L, cam);
         assert(handler);
-        
+
         EventFunc *bind = &cam->touchmove_bind;
         bind->type = (handler == NULL) ? EVFUNC_TYPE_NONE : EVFUNC_TYPE_C;
         bind->func.touch_func = handler;
@@ -221,7 +218,7 @@ BindTouchUp(Camera *cam, TouchHandler handler, intptr_t data)
 {
         valid_camera(L, cam);
         assert(handler);
-        
+
         EventFunc *bind = &cam->touchup_bind;
         bind->type = (handler == NULL) ? EVFUNC_TYPE_NONE : EVFUNC_TYPE_C;
         bind->func.touch_func = handler;
@@ -243,7 +240,7 @@ UnbindTouches(Camera *cam)
 #endif  /* ENABLE_TOUCH */
 
 /*
- * NewWorld(name, step, grid_area, grid_cellsz, trace_skip=0) -> world
+ * NewWorld(name, step, grid_area, grid_cellsz) -> world
  *
  * Create a new world and return its pointer. World is the topmost data
  * structure (see world.h).
@@ -257,17 +254,12 @@ UnbindTouches(Camera *cam)
  * grid_cellsz          Size of grid cells. Each cell is a square. Make the
  *                      cells somewhat larger than the most abundant object in
  *                      the world.
- * trace_skip           When recording body state for the purpose of rewinding
- *                      time, this option allows to skip steps so as to save
- *                      memory space. Leaving `trace_skip` at zero will cause
- *                      each and every step to be recorded.
  */
 World *
-NewWorld(const char *name, unsigned step, BB area, unsigned cellsz,
-         unsigned trace_skip)
+NewWorld(const char *name, unsigned step, BB area, unsigned cellsz)
 {
         info_assert(L, area.l < area.r && area.b < area.t, "Invalid area box.");
-        return world_new(name, step, area, cellsz, trace_skip);
+        return world_new(name, step, area, cellsz);
 }
 
 /*
@@ -320,7 +312,7 @@ NewCamera(World *world, vect_f pos, const vect_i *size_arg,
           const BB *viewport_arg, int sort)
 {
         valid_world(L, world);
-        
+
         /* Init viewport box. */
         BB viewport;
         if (viewport_arg != NULL) {
@@ -342,10 +334,10 @@ NewCamera(World *world, vect_f pos, const vect_i *size_arg,
                                 .l=0, .r=config.screen_width,
                                 .b=config.screen_height, .t=0
                         };
-                }                
+                }
         }
         assert(viewport.r > viewport.l && viewport.b > viewport.t);
-        
+
         vect_i size = {0, 0};
         if (size_arg != NULL) {
                 size = *size_arg;
@@ -355,7 +347,7 @@ NewCamera(World *world, vect_f pos, const vect_i *size_arg,
         }
         assert(size.x >= 0 && size.y >= 0);
         assert(size.x > 0 || size.y > 0);
-        
+
         /*
          * If one of the size components is zero, compute the other one using
          * viewport aspect ratio.
@@ -364,11 +356,11 @@ NewCamera(World *world, vect_f pos, const vect_i *size_arg,
                 size.x = (int)lroundf(size.y*(viewport.r-viewport.l)/(viewport.b-viewport.t));
         if (size.y == 0)
                 size.y = (int)lroundf(size.x*(viewport.b-viewport.t)/(viewport.r-viewport.l));
-        
+
         /* Create camera and position its body. */
         Camera *cam = cam_new(world, size, viewport);
         body_set_pos(&cam->body, pos);
-        
+
         /*
          * Prepend to global camera list.
          * We must re-sort the list so that proper sort order is maintained.
@@ -377,7 +369,7 @@ NewCamera(World *world, vect_f pos, const vect_i *size_arg,
         cam->sort = sort;               /* Don't forget to set "sort". */
         DL_PREPEND(cam_list, cam);
         DL_SORT(cam_list, cmp_cameras);
-        
+
         return cam;
 }
 
@@ -397,29 +389,29 @@ NewCamera(World *world, vect_f pos, const vect_i *size_arg,
  */
 Shape *
 NewShape(void *parent, vect_f offset, BB rect, const char *groupName)
-{                
+{
         /* Body and World. */
         Body *body = get_body(L, parent);
         World *world = body->world;
-        
+
         /* Extract collision group name and find corresponding group. */
         assert(groupName && strlen(groupName) > 0);
         Group *group;
         HASH_FIND_STR(world->groups, groupName, group);
-        
+
         /* Create group if it doesn't exist yet. */
         if (group == NULL) {
                 extern mem_pool mp_group;
                 group = mp_alloc(&mp_group);
                 assert(strlen(groupName) < sizeof(group->name));
-                
+
                 /* Set group name, ID, and add it to hash. */
                 strcpy(group->name, groupName);
                 group->index = world->next_group_id++;
                 assert(group->index < SHAPEGROUPS_MAX);
                 HASH_ADD_STR(world->groups, name, group);
         }
-        
+
         /* Shape definition. */
         ShapeDef def = {
                 .rect = {
@@ -429,11 +421,11 @@ NewShape(void *parent, vect_f offset, BB rect, const char *groupName)
                         .t=rect.t + offset.y
                 }
         };
-        
+
         /* Create shape. */
         Shape *s = shape_new(body, group, SHAPE_RECTANGLE, def);
         s->color = config.defaultShapeColor;
-        
+
         return s;
 }
 
@@ -469,18 +461,18 @@ NewTile(void *parent, vect_f offset, const vect_f *size_arg, SpriteList *spriteL
 #endif
         /* Get parent Body object. */
         Body *body = get_body(L, parent);
-        
+
         vect_f size = {-10, -10};
         if (size_arg != NULL) {
                 size = *size_arg;
                 assert(size.x > 0.0 && size.y > 0.0);
         }
-        
+
         /* Create the tile and set its sprite-list. */
         int grid_store = (*(int *)parent != OBJTYPE_CAMERA);
         Tile *t = tile_new(body, offset, size, depth, grid_store);
         SetSpriteList(t, spriteList);
-                
+
         return t;
 }
 
@@ -528,7 +520,7 @@ NewSpriteList(const char *texname, unsigned flags, const BB *first_subimage, ...
         Texture *tex = texture_load(texname, flags);
         if (tex == NULL)
                 return NULL;    /* Could not load image. */
-        
+
         /*
          * If no valid BB pointers are present, create a single frame that
          * contains the whole texture.
@@ -543,7 +535,7 @@ NewSpriteList(const char *texname, unsigned flags, const BB *first_subimage, ...
                 assert(tf.r > tf.l && tf.b > tf.t);
                 return spritelist_new(tex, &tf, 1);
         }
-        
+
         /*
          * Read vararg subimage specifications until NULL.
          */
@@ -556,22 +548,14 @@ NewSpriteList(const char *texname, unsigned flags, const BB *first_subimage, ...
                 /* Add a TexFrag to the frame list. */
                 assert(num_frames < ARRAYSZ(tmp_frames));
                 TexFrag *tf = &tmp_frames[num_frames++];
-#if PLATFORM_IOS
-                int f = (config.screen_width > 500) ? 2 : 1;
-                tf->l = subimg->l * f;
-                tf->r = subimg->r * f;
-                tf->b = subimg->b * f;
-                tf->t = subimg->t * f;
-#else
                 tf->l = subimg->l;
                 tf->r = subimg->r;
                 tf->b = subimg->b;
                 tf->t = subimg->t;
-#endif
                 assert(tf->r > tf->l && tf->b > tf->t);
         }
         va_end(ap);
-        
+
         return spritelist_new(tex, tmp_frames, num_frames);
 }
 
@@ -602,16 +586,11 @@ ChopImage(const char *texname, unsigned flags, vect_i size, unsigned first,
          * the global texture_hash. If not found, create a new texture.
          */
         Texture *tex = texture_load(texname, flags);
-        
+
         assert(size.x > 0 && size.y > 0);
-#if PLATFORM_IOS
-        int factor = (config.screen_width > 500) ? 2 : 1;
-        unsigned num_cols = tex->w / (size.x * factor); /* Number of columns. */
-        unsigned num_rows = tex->h / (size.y * factor); /* Number of rows. */
-#else        
         unsigned num_cols = tex->w / size.x;        /* Number of columns. */
         unsigned num_rows = tex->h / size.y;        /* Number of rows. */
-#endif
+
         /* Create sprite-list frames. */
         unsigned num_frames = 0;
         TexFrag tmp_frames[200];
@@ -621,20 +600,13 @@ ChopImage(const char *texname, unsigned flags, vect_i size, unsigned first,
         for (unsigned i = first; i < sentinel; i += (1 + skip)) {
                 assert(num_frames < ARRAYSZ(tmp_frames));
                 TexFrag *tf = &tmp_frames[num_frames++];
-                
+
                 unsigned r = i / num_cols;
                 unsigned c = i - r * num_cols;
-#if PLATFORM_IOS
-                tf->l = (c  ) * size.x * factor;
-                tf->r = (c+1) * size.x * factor;
-                tf->b = (r+1) * size.y * factor;
-                tf->t = (r  ) * size.y * factor;
-#else
                 tf->l = c * (size.x + 0);
                 tf->r = c * (size.x + 0) + size.x;
                 tf->b = r * (size.y + 0) + size.y;
                 tf->t = r * (size.y + 0);
-#endif
         }
         assert(total == 0 || total == num_frames);
         return spritelist_new(tex, tmp_frames, num_frames);
@@ -715,10 +687,6 @@ vect_i
 GetImageSize(const char *image, unsigned flags)
 {
         Texture *tex = texture_load(image, flags);
-#if PLATFORM_IOS
-        if (config.screen_width > 500)
-                return (vect_i){tex->w / 2, tex->h / 2};
-#endif
         return (vect_i){tex->w, tex->h};
 }
 
@@ -759,7 +727,7 @@ GetGroup(World *world, const char *name)
 {
         assert(name && *name);
         valid_world(L, world);
-        
+
         Group *group;
         HASH_FIND_STR(world->groups, name, group);
         return group;
@@ -791,10 +759,10 @@ SetZoom(Camera *cam, float zoom)
                 zoom = 0.1;
         if (zoom > 100.9)
                 zoom = 100.9;
-        
+
         cam->zoom = zoom;
 }
-        
+
 vect_f
 GetSize(void *obj)
 {
@@ -802,7 +770,7 @@ GetSize(void *obj)
         case OBJTYPE_CAMERA: {
                 Camera *cam = obj;
                 valid_camera(L, cam);
-                
+
                 return (vect_f){
                         .x=cam->size.x / cam->zoom,
                         .y=cam->size.y / cam->zoom
@@ -811,7 +779,7 @@ GetSize(void *obj)
         case OBJTYPE_TILE: {
                 Tile *t = obj;
                 valid_tile(L, t);
-                
+
                 vect_f size = tile_size(t);
                 if (size.x < 0) {
                         size.x = -size.x;
@@ -861,10 +829,10 @@ void
 AnimateSizeCentered(void *obj, uint8_t type, vect_f end_sz, float duration, float start_time)
 {
         valid_tile(L, obj);
-        
+
         /* Animate size. */
         tile_anim_size(obj, type, end_sz, duration, start_time);
-        
+
         /* Animate position. */
         vect_f diff = vect_f_sub(GetSize(obj), end_sz);
         vect_f end_pos = vect_f_add(tile_pos(obj), (vect_f){diff.x/2, diff.y/2});
@@ -948,14 +916,14 @@ SetPos(void *obj, vect_f pos)
                 return;
         }
         case OBJTYPE_TILE: {
-                valid_tile(L, obj);                
+                valid_tile(L, obj);
                 tile_set_pos(obj, pos);
                 return;
         }
         case OBJTYPE_SHAPE: {
                 valid_shape(L, obj);
                 vect_i delta = (vect_i){posround(pos.x), posround(pos.y)};
-                
+
                 switch (((Shape *)obj)->shape_type) {
                 case SHAPE_RECTANGLE: {
                         ShapeDef def = shape_def(obj);
@@ -1200,7 +1168,7 @@ FlipX(Tile *t, int flip)
                 else
                         t->flags &= ~TILE_FLIP_X;
         }
-        
+
         return (t->flags & TILE_FLIP_X);
 }
 
@@ -1222,7 +1190,7 @@ FlipY(Tile *t, int flip)
                 else
                         t->flags &= ~TILE_FLIP_Y;
         }
-        
+
         return (t->flags & TILE_FLIP_Y);
 }
 
@@ -1266,7 +1234,7 @@ void
 SetStep(void *obj, StepFunction sf, intptr_t data)
 {
         Body *b = get_body(L, obj);
-        
+
         /* Set step/after-step function. */
         b->flags |= BODY_STEP_C;
         b->step_func = (intptr_t)sf;
@@ -1292,11 +1260,11 @@ SetSpriteList(Tile *t, SpriteList *sprite_list)
                 SpriteList *sz_sprite_list = sprite_list != NULL ? sprite_list :
                 t->sprite_list;
                 valid_spritelist(L, sz_sprite_list);
-                
+
                 /* Get size that accomodates all frames. */
                 vect_i size = texfrag_maxsize(sz_sprite_list->frames,
                                               sz_sprite_list->num_frames);
-                
+
                 /*
                  * If sprite-list is set, store this calculated size as
                  * negative so drawing code knows individual sprite-list frame
@@ -1309,7 +1277,7 @@ SetSpriteList(Tile *t, SpriteList *sprite_list)
                 }
                 tile_set_size(t, (vect_f){size.x, size.y});
         }
-        
+
         /* Assign sprite list and reset frame index. */
         t->sprite_list = sprite_list;
         tile_set_frame(t, 0);
@@ -1346,7 +1314,7 @@ SetFrameClamp(Tile *t, int new_index)
                 new_index = 0;
         else if ((unsigned)new_index >= t->sprite_list->num_frames)
                 new_index = t->sprite_list->num_frames - 1;
-        
+
         tile_set_frame(t, new_index);
 }
 
@@ -1426,7 +1394,7 @@ SelectShapes(World *world, vect_i point, const char *group_name, Shape *shape_bu
 {
         assert(shape_buf && max_shapes > 0);
         valid_world(L, world);
-        
+
         /* See if we have to filter by group name. */
         Group *group = NULL;
         if (group_name != NULL) {
@@ -1434,17 +1402,17 @@ SelectShapes(World *world, vect_i point, const char *group_name, Shape *shape_bu
                 if (group == NULL)
                         return 0;       /* No such group found. */
         }
-        
+
         /* Expand the point a bit to create a bounding box. */
         BB bb = {
                 .l=point.x-1, .b=point.y-1, .r=point.x+1, .t=point.y+1
         };
-        
+
         /* Look up nearby shapes from grid. */
         void *nearby[100];
         unsigned num_nearby = grid_lookup(&world->grid, bb, nearby,
                                           ARRAYSZ(nearby), shape_filter);
-        
+
         /*
          * Go over the lookup shapes. If we find one which really intersects our
          * point (and belongs to requested group), add it to result array.
@@ -1455,11 +1423,11 @@ SelectShapes(World *world, vect_i point, const char *group_name, Shape *shape_bu
                 valid_shape(L, s);
                 if (group != NULL && s->group != group)
                         continue;       /* Not in requested group. */
-                
+
                 /* Add to user shape buf if there's overlap. */
                 if (shape_vs_bb(s, bb))
                         shape_buf[num_shapes++] = s;
-                
+
                 if (num_shapes == max_shapes)
                         break;  /* User shape buffer is full. */
         }
@@ -1518,7 +1486,7 @@ CancelTimer(TimerPtr *timer_ptr)
         /* Ignore if timer is not alive. */
         if (!Alive(timer_ptr))
                 return;
-        
+
         void *owner = timer_ptr->ptr->owner;
         switch (*(int *)owner) {
         case OBJTYPE_BODY: {
@@ -1541,7 +1509,7 @@ CancelTimer(TimerPtr *timer_ptr)
         default:
                 objtype_error(L, owner);
         }
-        
+
         timer_ptr->ptr = NULL;
 }
 
@@ -1615,7 +1583,7 @@ Alive(void *obj)
         case OBJTYPE_TIMERPTR: {
                 TimerPtr *timer_ptr = obj;
                 assert(valid_timerptr(timer_ptr));
-                
+
                 /*
                  * If timer pointer is NULL or timer ID is zero, then timer is
                  * not alive.
@@ -1641,7 +1609,7 @@ Alive(void *obj)
                 return !((World *)obj)->paused;
         }
         }
-        
+
         /* Destroyed objects are considered `not alive`. */
         return 0;
 }
@@ -1656,15 +1624,15 @@ void
 DrawToTexture(const char *name, unsigned flags)
 {
         assert(name && *name != '\0');
-        
+
         /* Set up the texture with screen size. */
         Texture *tex = texture_load_blank(name, flags);
         texture_set_size(tex, config.screen_width, config.screen_height);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, tex->pow_w, tex->pow_h, 0,
                      GL_RGB, GL_UNSIGNED_BYTE, NULL);
-        if (glGenerateMipmap != NULL && (flags & TEXFLAG_FILTER))
+        if (flags & TEXFLAG_FILTER)
                 glGenerateMipmap(GL_TEXTURE_2D);
-        
+
         /* Create and bind framebuffer. */
         GLuint framebuf;
         glGenFramebuffers(1, &framebuf);
@@ -1672,7 +1640,7 @@ DrawToTexture(const char *name, unsigned flags)
         assert(tex->id);
         glFramebufferTexture2D(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
                                GL_TEXTURE_2D, tex->id, 0);
-        
+
         /* Draw everything as usual. */
         extern Camera *cam_list;
         glClear(GL_COLOR_BUFFER_BIT);
@@ -1680,7 +1648,7 @@ DrawToTexture(const char *name, unsigned flags)
                 if (!cam->disabled)
                         render_to_framebuffer(cam);
         }
-        
+
         /* Dispose of framebuffer. */
         glDeleteFramebuffers(1, &framebuf);
 
@@ -1692,9 +1660,7 @@ DrawToTexture(const char *name, unsigned flags)
 void
 StopAccelerometer(void)
 {
-#if PLATFORM_IOS
-        glue_stop_accelerometer();
-#endif
+        // blank
 }
 
 /*
@@ -1712,12 +1678,8 @@ StopAccelerometer(void)
 int
 GetAccelerometerAxes(vect3d *values)
 {
-#if PLATFORM_IOS
-        return glue_get_accelerometer_axes(values);
-#else
         UNUSED(values);
         return 0;
-#endif
 }
 
 /*
@@ -1780,42 +1742,42 @@ Collide(World *w, const char *groupname_a, const char *groupname_b,
         if (groupA == NULL) {
                 extern mem_pool mp_group;
                 groupA = mp_alloc(&mp_group);
-                
+
                 assert(strlen(groupname_a) < sizeof(groupA->name));
                 strcpy(groupA->name, groupname_a);
-                
+
                 groupA->index = w->next_group_id++;
                 assert(groupA->index < SHAPEGROUPS_MAX);
                 HASH_ADD_STR(w->groups, name, groupA);
         }
-        
+
         /* Create group B if it doesn't exist. */
         Group *groupB;
         HASH_FIND_STR(w->groups, groupname_b, groupB);
         if (groupB == NULL) {
                 extern mem_pool mp_group;
                 groupB = mp_alloc(&mp_group);
-                
+
                 assert(strlen(groupname_b) < sizeof(groupB->name));
                 strcpy(groupB->name, groupname_b);
-                
+
                 groupB->index = w->next_group_id++;
                 assert(groupB->index < SHAPEGROUPS_MAX);
                 HASH_ADD_STR(w->groups, name, groupB);
         }
-        
+
         /* Get handler structure pointer from `handler_map` array. */
         Handler *handler = &w->handler_map[groupA->index][groupB->index];
-        
+
         /* Verify there is no handler for reversed groups. */
         assert(w->handler_map[groupB->index][groupA->index].type == HANDLER_NONE);
-        
+
         /* Each group remembers how many handlers we have registered for it. */
         if (handler->func == 0 && cf != NULL)
                 groupA->num_handlers++;
         else if (handler->func != 0 && cf == NULL)
                 groupA->num_handlers--;
-        
+
         /* Set handler data. */
         handler->type = HANDLER_C;
         handler->func = (intptr_t)cf;
@@ -1874,7 +1836,7 @@ void
 Clear(void)
 {
         StopAccelerometer();         /* Close accelerometer if it was opened. */
-        
+
         /* Destroy textures that have not been used in a while. */
         texture_free_unused();
 
@@ -1911,12 +1873,6 @@ Clear(void)
         assert(mp_first(&mp_camera) == NULL);
         assert(mp_first(&mp_group) == NULL);
         assert(mp_first(&mp_property) == NULL);
-#if TRACE_MAX
-        extern mem_pool mp_bodytrace, mp_tiletrace, mp_shapetrace;
-        assert(mp_first(&mp_bodytrace) == NULL);
-        assert(mp_first(&mp_tiletrace) == NULL);
-        assert(mp_first(&mp_shapetrace) == NULL);
-#endif
 #endif  /* !NDEBUG */
 }
 

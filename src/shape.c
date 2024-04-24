@@ -206,44 +206,9 @@ shape_free(Shape *s)
         /* Destroy shape definition property. */
         prop_free(s->def);
         
-#if TRACE_MAX
-        /* Free trace properties and the trace array itself. */
-        ShapeState *trace = s->trace;
-        if (trace != NULL) {
-                /* Free properties. */
-                for (unsigned i = 0; i < TRACE_MAX; i++) {
-                        if (trace[i].def != NULL) {
-                                prop_free(trace[i].def);
-                        }
-                }
-                
-                /* Free trace array. */
-                extern mem_pool mp_shapetrace;
-                mp_free(&mp_shapetrace, trace);
-        }
-#endif
         extern mem_pool mp_shape;
         mp_free(&mp_shape, s);
 }
-
-#if TRACE_MAX
-/*
- * Add current state to shape's trace array in a round-robin fashion.
- */
-void
-shape_record_trace(Shape *s, unsigned trace_index)
-{
-        ShapeState *ss = &s->trace[trace_index];
-        
-        /* Free previously stored properties. */
-        if (ss->def != NULL) {
-                prop_free(ss->def);
-        }
-        
-        /* Copy all properties into trace. */
-        ss->def = prop_copy(s->def);    /* Always non-NULL. */
-}
-#endif  /* TRACE_MAX */
 
 ShapeDef
 shape_def(Shape *s)

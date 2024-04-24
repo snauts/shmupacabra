@@ -12,18 +12,6 @@ struct Tile_t;
 struct Shape_t;
 struct World_t;
 
-#if TRACE_MAX
-/*
- * BodyState records body state at a given moment in time.
- */
-typedef struct {
-        unsigned step;
-        Property *pos;
-        vect_f   vel;
-        intptr_t step_func, step_cb_data;
-} BodyState;
-#endif  /* TRACE_MAX */
-
 /*
  * Body flags:
  *
@@ -56,11 +44,6 @@ typedef struct Body_t {
         vect_f          prevstep_pos;   /* Position in the previous step. */
         unsigned        flags;          /* Misc state. */
         
-#if TRACE_MAX
-        /* Remember previous body states to be able to rewind time. */
-        BodyState       *trace;
-        int             trace_next;
-#endif
         struct Tile_t   *tiles;         /* List of tiles. */
         struct Shape_t  *shapes;        /* List of shapes. */
         

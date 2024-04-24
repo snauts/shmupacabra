@@ -72,23 +72,13 @@ spritelist_free(SpriteList *s)
 vect_i
 texfrag_size(const TexFrag *tf)
 {
-#if PLATFORM_IOS
-        int f = (config.screen_width > 500) ? 1 : 2;
-        return (vect_i){abs(tf->r - tf->l) * f, abs(tf->b - tf->t) * f};
-#else
         return (vect_i){abs(tf->r - tf->l), abs(tf->b - tf->t)};
-#endif
 }
 
 vect_f
 texfrag_sizef(const TexFrag *tf)
 {
-#if PLATFORM_IOS
-        int f = (config.screen_width > 500) ? 1 : 2;
-        return (vect_f){abs(tf->r - tf->l) * f, abs(tf->b - tf->t) * f};
-#else
         return (vect_f){abs(tf->r - tf->l), abs(tf->b - tf->t)};
-#endif
 }
 
 vect_i

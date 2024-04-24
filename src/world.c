@@ -20,7 +20,7 @@ save_state(World *world, Body  *active_bodies[], unsigned num_bodies)
         Body *b;
         for (unsigned i = 0; i < num_bodies; i++) {
                 b = active_bodies[i];
-                b->prevstep_pos = body_pos(b);                
+                b->prevstep_pos = body_pos(b);
         }
 
         /* Save positions of camera bodies. */
@@ -31,30 +31,6 @@ save_state(World *world, Body  *active_bodies[], unsigned num_bodies)
                         continue;
                 cam->body.prevstep_pos = body_pos(&cam->body);
         }
-#if TRACE_MAX
-        /* See if this trace recording step should be skipped. */
-        if (world->static_body.step % (world->trace_skip + 1) != 0)
-                return;
-
-        /* Record static body state. */
-        if (body_traced(&world->static_body))
-                body_record_trace(&world->static_body);
-        
-        /* Record active body state. */
-        for (unsigned i = 0; i < num_bodies; i++) {
-                Body *b = active_bodies[i];
-                if (body_traced(b))
-                        body_record_trace(b);
-        }
-        
-        /* Record camera body state. */
-        DL_FOREACH(cam_list, cam) {
-                if (cam->body.world != world || cam->disabled)
-                        continue;
-                if (body_traced(&cam->body))
-                        body_record_trace(&cam->body);
-        }
-#endif /* !TRACE_MAX */
 }
 
 static int
@@ -65,49 +41,46 @@ invoke_collision_handler(Handler *handler, Shape *A, Shape *B, int new,
                 CollisionFunc cf = (CollisionFunc)handler->func;
                 return cf(A, B, new, resolve, handler->data);
         }
-#if ENABLE_LUA
+
         extern int callfunc_index;
         lua_pushvalue(L, callfunc_index);
         assert(lua_isfunction(L, -1));          /* ... callfunc */
-        
+
         assert(handler->type == HANDLER_LUA);
         lua_pushinteger(L, handler->func);      /* ... callfunc func_id */
         lua_pushinteger(L, handler->data);      /* + arg_id */
-        lua_pushboolean(L, 0);                  /* + false */                
-        
+        lua_pushboolean(L, 0);                  /* + false */
+
         /* Push shape or `nil` if it was destroyed. */
         if (A != NULL)
                 lua_pushlightuserdata(L, A);
         else
                 lua_pushnil(L);
-                
+
         /* Push shape or `nil` if it was destroyed. */
         if (B != NULL)
                 lua_pushlightuserdata(L, B);
         else
                 lua_pushnil(L);
-        
+
         /* Push the resolution info or `nil` for separation callback. */
         if (resolve != NULL)
                 L_push_BB(L, *resolve);
         else
                 lua_pushnil(L);
-        
+
         /* Push the `new collision` flag. */
         lua_pushboolean(L, new);
-        
+
         /* Call Lua function. */
         extern int errfunc_index;
         if (lua_pcall(L, 7, 1, errfunc_index))
                 fatal_error("[Lua] %s", lua_tostring(L, -1));
-                
+
         /* Get user return value. */
         int ignore = lua_toboolean(L, -1);
         lua_pop(L, 1);
         return ignore;
-#else
-        abort();
-#endif
 }
 
 static void
@@ -115,7 +88,7 @@ add_potential_collisions(Shape *s, Collision *collision_array,
                          unsigned max_collisions, unsigned *num_collisions)
 {
         UNUSED(max_collisions);
-        
+
         /*
          * Expand shape bounding box. We want to get all nearby shapes within
          * collision distance.
@@ -126,14 +99,14 @@ add_potential_collisions(Shape *s, Collision *collision_array,
                 .r=s->go.area.r + config.collision_dist,
                 .t=s->go.area.t + config.collision_dist
         };
-            
+
         /* Get a list of shapes that this one potentially intersects. */
         World *world = s->body->world;
         void *intersect_maybe[1000];
         unsigned num_shapes = grid_lookup(&world->grid, exp_shape_bb,
                                       intersect_maybe, ARRAYSZ(intersect_maybe),
                                       shape_filter);
-        
+
         /*
          * Now iterate over shapes that we found can potentially intersect with
          * shape [s]. As we do this, we keep filling an array of Collision
@@ -145,7 +118,7 @@ add_potential_collisions(Shape *s, Collision *collision_array,
                 assert(other_s->group != 0);
                 if (s->body == other_s->body)
                         continue;       /* Skip shapes with the same body. */
-                
+
                 /*
                  * Find if there's a collision routine registered for these
                  * shapes.
@@ -179,7 +152,7 @@ collision_priority_cmp(const void *a, const void *b)
 {
         const Collision *ca = a;
         const Collision *cb = b;
-                
+
         if (ca->handler.priority == cb->handler.priority) {
                 if (ca->shape_A == cb->shape_A) {
                         if (ca->shape_B == cb->shape_B)
@@ -211,7 +184,7 @@ resolve_collisions(World *world, Shape *active_shapes[], unsigned num_shapes,
                                          ARRAYSZ(collision_array),
                                          &num_collisions);
         }
-        
+
         /*
          * Sort collisions by priority. Then iterate over them and execute their
          * handler functions.
@@ -224,8 +197,8 @@ resolve_collisions(World *world, Shape *active_shapes[], unsigned num_shapes,
                 Collision *col = &collision_array[i];
                 Shape *shape_A = col->shape_A;
                 Shape *shape_B = col->shape_B;
-                
-                /* 
+
+                /*
                  * It is possible (if unlikely) that a shape was destroyed, and
                  * then some other shape reused its memory. Here we make sure
                  * that the shape that's currently there belongs to this world
@@ -239,7 +212,7 @@ resolve_collisions(World *world, Shape *active_shapes[], unsigned num_shapes,
                     shape_A->group != col->group_A ||
                     shape_B->group != col->group_B)
                         continue;
-                
+
                 /* Compute resolution box. */
                 BB resolve;
                 if (!shape_vs_shape(shape_B, shape_A, &resolve))
@@ -259,18 +232,18 @@ resolve_collisions(World *world, Shape *active_shapes[], unsigned num_shapes,
                           past_col);
                 if (past_col == NULL) {
                         new = 1;
-                        
+
                         /* Allocate and setup collision struct. */
                         extern mem_pool mp_collision;
                         past_col = mp_alloc(&mp_collision);
                         *past_col = *col;
                         past_col->ignore = 0;
-                        
+
                         /* Add to hash. */
                         HASH_ADD(hh, world->collisions, shape_A, keylen,
                                  past_col);
                 }
-                
+
                 /*
                  * Mark collision as active and invoke collision handler
                  * if necessary.
@@ -281,7 +254,7 @@ resolve_collisions(World *world, Shape *active_shapes[], unsigned num_shapes,
                             &col->handler, shape_A, shape_B, new, &resolve, L);
                 }
         }
-        
+
         /* Invoke separation handlers for inactive collisions. */
         Collision *col, *tmp_col;
         HASH_ITER(hh, world->collisions, col, tmp_col) {
@@ -290,10 +263,10 @@ resolve_collisions(World *world, Shape *active_shapes[], unsigned num_shapes,
                         col->active = 0;
                         continue;
                 }
-                
+
                 Shape *shape_A = col->shape_A;
                 Shape *shape_B = col->shape_B;
-                
+
                 /* If shape A (or B) was destroyed, set its pointer to NULL. */
                 if (shape_A->body == NULL ||
                     shape_A->body->world != world ||
@@ -305,13 +278,13 @@ resolve_collisions(World *world, Shape *active_shapes[], unsigned num_shapes,
                     shape_B->group != col->group_B) {
                         shape_B = NULL;
                 }
-                
+
                 /* Invoke collision handler if necessary. */
                 if (!col->ignore) {
                         invoke_collision_handler(&col->handler, shape_A,
                                                  shape_B, 0, NULL, L);
                 }
-                
+
                 /* Destroy collision. */
                 extern mem_pool mp_collision;
                 HASH_DEL(world->collisions, col);
@@ -328,32 +301,30 @@ resolve_collisions(World *world, Shape *active_shapes[], unsigned num_shapes,
  * cell_size            Size of each rectangular grid cell.
  */
 World *
-world_new(const char *name, unsigned step_ms, BB grid_area, unsigned cell_size,
-          unsigned trace_skip)
+world_new(const char *name, unsigned step_ms, BB grid_area, unsigned cell_size)
 {
         log_msg("Create world '%s'", name);
 
         /* Allocate. */
         extern mem_pool mp_world;
         World *world = mp_alloc(&mp_world);
-        
+
         world->objtype = OBJTYPE_WORLD;
         world->next_group_id = 1;
 
         assert(name && strlen(name) < sizeof(world->name));
         strcpy(world->name, name);
-        
+
         assert(step_ms > 0 && step_ms < 1000);
         world->step_ms = step_ms;
         world->step_sec = (float)step_ms / 1000.0;
-        world->trace_skip = trace_skip;
-        
+
         extern uint64_t game_time;
         world->next_step_time = game_time;
-        
+
         /* Set up space partitioning. */
         grid_init(&world->grid, grid_area, cell_size);
-        
+
         /* Init static body and return world. */
         body_init(&world->static_body, NULL, world, (vect_f){0.0, 0.0}, 0);
         return world;
@@ -366,10 +337,10 @@ void
 world_free(World *world)
 {
         log_msg("Destroy world '%s' (%p).", world->name, world);
-        
+
         /* World must be already cleared. */
         assert(world->killme);
-        
+
         /* Free memory. */
         extern mem_pool mp_world;
         mp_free(&mp_world, world);
@@ -388,19 +359,19 @@ world_kill(World *world)
 #endif
         /* Destroy static body (and all other bodies along with it). */
         body_destroy(&world->static_body);
-        
+
         /* Clear out any cameras that are "filming" this world. */
         extern Camera *cam_list;
         Camera *cam, *cam_tmp;
         DL_FOREACH_SAFE(cam_list, cam, cam_tmp) {
                 if (cam->body.world != world)
                         continue;       /* Camera not inside this world. */
-         
+
                 /* Remove camera from global list, then free its memory. */
                 DL_DELETE(cam_list, cam);
                 cam_free(cam);
         }
-        
+
         /* Clear group hash. */
         Group *group;
         extern mem_pool mp_group;
@@ -410,10 +381,10 @@ world_kill(World *world)
                 mp_free(&mp_group, group);
         }
         world->next_group_id = 1;       /* Reset ID counter. */
-        
+
         /* Clear collision handler map. */
         memset(world->handler_map, 0, sizeof(world->handler_map));
-        
+
         /* Destroy any remaining collisions. */
         Collision *col;
         extern mem_pool mp_collision;
@@ -422,10 +393,10 @@ world_kill(World *world)
                 HASH_DEL(world->collisions, col);
                 mp_free(&mp_collision, col);
         }
-        
+
         /* Destroy world grid. */
         grid_destroy(&world->grid);
-        
+
         /* Mark world as ready for being freed. */
         world->killme = 1;
 }
@@ -433,11 +404,11 @@ world_kill(World *world)
 static void
 run_timers(World *world, Body *active_bodies[], unsigned num_active,
            lua_State *L)
-{        
+{
         /* Run timers for static body. */
         if (body_active(&world->static_body))
                 body_run_timers(&world->static_body, L);
-                
+
         /* Invoke timers for active bodies. */
         Body *b;
         for (unsigned i = 0; i < num_active; i++) {
@@ -446,7 +417,7 @@ run_timers(World *world, Body *active_bodies[], unsigned num_active,
                 if (body_active(b))
                         body_run_timers(b, L);
         }
-                
+
         /* Run camera timers. */
         extern Camera *cam_list;
         for (Camera *cam = cam_list; cam != NULL; cam = cam->next) {
@@ -473,7 +444,7 @@ step_bodies(World *world, Body *active_bodies[], unsigned num_active,
                 if (body_active(b))
                         step_func(b, L, b);
         }
-                
+
         /* Step camera bodies. */
         extern Camera *cam_list;
         for (Camera *cam = cam_list; cam != NULL; cam = cam->next) {
@@ -503,7 +474,7 @@ smart_filter(void *ptr)
         Body *b = s->body;      /* Same offset for Shape and Tile. */
         if ((b->flags & BODY_NOCTURNAL) || !body_active(b))
                 return 0;
-        
+
         /*
          * Add bodies to array that:
          *   - are not the static body or a camera (parent != NULL);
@@ -514,7 +485,7 @@ smart_filter(void *ptr)
                 g_active_bodies[g_num_active_bodies++] = b;
                 b->flags |= BODY_VISITED;
         }
-        
+
         /*
          * Add shapes to their array that:
          *   - are shapes (not tiles);
@@ -556,7 +527,7 @@ dumb_add_all(Body *b)
                         assert(g_num_active_bodies < ACTIVE_BODIES_MAX);
                         g_active_bodies[g_num_active_bodies++] = child;
                 }
-                
+
                 /* Recursive descent. */
                 dumb_add_all(child);
         }
@@ -576,7 +547,7 @@ unset_intersect_flag(Body *b)
         DL_FOREACH(b->shapes, s) {
                 s->flags &= ~SHAPE_INTERSECT;
         }
-        
+
         Body *child;
         DL_FOREACH(b->children, child) {
                 unset_intersect_flag(child);
@@ -597,7 +568,7 @@ world_step(World *world, lua_State *L)
         assert(offsetof(Shape, body) == offsetof(Tile, body));
         if (world->paused)
                 return;         /* Do nothing if world is paused. */
-        
+
         /*
          * Put body/shape array pointers in global variables so smart_filter()
          * can access them.
@@ -617,7 +588,7 @@ world_step(World *world, lua_State *L)
         DL_FOREACH(cam_list, cam) {
                 if (cam->body.world != world)
                         continue;       /* Camera not inside this world. */
-                
+
                 vect_f cam_pos = body_pos(&cam->body);
                 vect_f vicinity = {
                         cam->size.x * config.cam_vicinity_factor,
@@ -631,7 +602,7 @@ world_step(World *world, lua_State *L)
                 };
                 grid_lookup(&world->grid, activity_bb, NULL, 0, smart_filter);
         }
-                
+
         /*
          * Unset VISITED flag for both bodies and shapes.
          */
@@ -643,17 +614,17 @@ world_step(World *world, lua_State *L)
         for (unsigned i = 0; i < num_shapes; i++) {
                 active_shapes[i]->flags &= ~SHAPE_VISITED;
         }
-        
+
         /* Process nocturnal bodies. */
         for (Body *noc = world->nocturnal; noc != NULL;
              noc = noc->nocturnal_next) {
                 if (!body_active(noc))
                         continue;       /* Ignore paused bodies. */
-                
+
                 /* Add body to `active_bodies`. */
                 assert(num_bodies < ARRAYSZ(active_bodies));
                 active_bodies[num_bodies++] = noc;
-                
+
                 /* Add shapes to `active_shapes`. */
                 Shape *s;
                 DL_FOREACH(noc->shapes, s) {
@@ -662,7 +633,7 @@ world_step(World *world, lua_State *L)
                                 active_shapes[num_shapes++] = s;
                         }
                 }
-        }        
+        }
 #else   /* !ALL_NOCTURNAL && ENABLE_TILE_GRID */
         /*
          * Since all bodies are nocturnal, add all shapes and bodies to
@@ -677,10 +648,10 @@ world_step(World *world, lua_State *L)
         unsigned num_bodies = g_num_active_bodies;
         unsigned num_shapes = g_num_active_shapes;
 #endif  /* ALL_NOCTURNAL || !ENABLE_TILE_GRID */
-        
+
         /* Remember state before continuing with the step. */
         save_state(world, active_bodies, num_bodies);
-                
+
         /* Execute step functions and timers. */
         step_bodies(world, active_bodies, num_bodies, L, body_step);
         run_timers(world, active_bodies, num_bodies, L);
@@ -690,7 +661,7 @@ world_step(World *world, lua_State *L)
 #endif
         /* Now that body positions have possibly changed, resolve collisions. */
         resolve_collisions(world, active_shapes, num_shapes, L);
-        
+
         /* Call after-step functions. */
         step_bodies(world, active_bodies, num_bodies, L, body_afterstep);
 }

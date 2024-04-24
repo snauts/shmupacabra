@@ -2,28 +2,10 @@
 #include <assert.h>
 #include <string.h>
 #include <SDL.h>
+#include "OpenGL_include.h"
 #include "common.h"
 #include "camera.h"
-#include "OpenGL_include.h"
 #include "misc.h"
-
-#if ENABLE_SQLITE
-/*
- * Prepare SQL statement.
- *
- * Note: *stmt pointer must be NULL before entering this function.
- */
-void
-prep_stmt(sqlite3_stmt **stmt, const char *sql)
-{
-        assert(sql && stmt && *stmt == NULL);
-        
-        extern sqlite3 *db;
-        sqlite3_prepare_v2(db, sql, -1, stmt, NULL);
-        if (*stmt == NULL)
-                fatal_error("[%s] %s", sql, sqlite3_errmsg(db));
-}
-#endif
 
 /*
  * Convert object type (integer) to its name. Returned string is statically
@@ -85,34 +67,6 @@ rand_eglibc(void)
 }
 
 /*
- * Pick random value from interval [start, end]. Endpoints included. `end` may
- * be less than or equal to `start`.
- */
-int
-random_rangepick(int start, int end)
-{
-        if (start < end)
-                return start + (int)(random() % (end - start + 1));
-        return end + (int)(random() % (start - end + 1));
-}
-
-/*
- * Pick random value from interval [start, end]. Endpoints included. `end` may
- * be less than or equal to `start`. Values are spaced `step` units apart.
- */
-float
-random_rangepickf(float start, float end, float step)
-{
-        assert(step > 0.0);        
-        if (start < end) {
-                unsigned num_steps = (end - start) / step;
-                return start + (random() % (num_steps + 1)) * step;
-        }
-        unsigned num_steps = (start - end) / step;
-        return end + (random() % (num_steps + 1)) * step;
-}
-
-/*
  * Look for extension name in the the GL_EXTENSIONS string.
  */
 int
@@ -146,63 +100,6 @@ nearest_pow2(unsigned number)
         return result;
 }
 
-#if PLATFORM_IOS
-
-/*
- * Add "@2x" to image filename.
- * Example:
- *      screw_it.jpg  ->  screw_it@2x.jpg
- *      GarBage       ->  GarBage
- *
- * Returns pointer to new name (which is the same as strbuf parameter).
- */
-const char *
-x2_add(const char *filename, char *strbuf, unsigned bufsize)
-{
-        UNUSED(bufsize);
-        assert(filename && strbuf && filename != strbuf && bufsize > 0);
-        assert(strlen(filename) + strlen("@2x") < bufsize);
-        
-        char *dot = strrchr(filename, '.');
-        if (dot == NULL)
-                return filename;
-
-        memcpy(strbuf, filename, dot - filename);
-        strcpy(stpcpy(strbuf + (dot - filename), "@2x"), dot);
-
-        return strbuf;
-}
-
-/*
- * Perform the reverse of add_x2().
- * Example:
- *      suck_it@2x.jpg  ->  suck_it.jpg
- *
- * If @2x was not found, then filename is returned. Otherwise returns pointer
- * to strbuf. strbuf is filled with stripped filename regardless of whether
- * original filename contains @2x substring or not.
- */
-const char *
-x2_strip(const char *filename, char *strbuf, unsigned bufsize)
-{
-        UNUSED(bufsize);
-        assert(filename && strbuf && filename != strbuf && bufsize > 0);
-        assert(strlen(filename) < bufsize);
-        
-        char *x2 = strstr(filename, "@2x");
-        if (x2 == NULL) {
-                strcpy(strbuf, filename);
-                return filename;
-        }
-        
-        memcpy(strbuf, filename, x2 - filename);
-        strcpy(strbuf + (x2 - filename), x2 + 3);
-        
-        return strbuf;
-}
-
-#endif  /* PLATFROM_IOS */
-
 void check_gl_errors__(void)
 {
         GLenum err = glGetError();
@@ -212,5 +109,4 @@ void check_gl_errors__(void)
                 log_err("OpenGL: 0x%x", err);
                 err = glGetError();
         }
-        //abort();    
 }

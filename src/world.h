@@ -19,9 +19,6 @@ typedef struct World_t {
         uint64_t next_step_time;
         int      paused;         /* Is world paused? */
         
-        /* How many steps to skip when recording trace. */
-        unsigned trace_skip;
-              
         Body     static_body;    /* Topmost body that does not move. */
         Body     *nocturnal;     /* List of bodies that never sleep. */
 
@@ -40,8 +37,7 @@ typedef struct World_t {
                                    as possible. */
 } World;
 
-World   *world_new(const char *name, unsigned step_ms, BB grid_area,
-                   unsigned cell_size, unsigned trace_skip);
+World   *world_new(const char *name, unsigned step_ms, BB grid_area, unsigned cell_size);
 void     world_free(World *world);
 void     world_kill(World *world);
 void     world_step(World *world, lua_State *L);

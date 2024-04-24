@@ -1,7 +1,5 @@
 #include "common.h"
 
-#if ENABLE_LUA
-
 #include <assert.h>
 #include <stdlib.h>
 #include <lua.h>
@@ -113,11 +111,6 @@ cfg_read(const char *filename)
         SET_POOLSIZE(touch);
         SET_POOLSIZE(hackevent);
 #endif
-#if TRACE_MAX
-        SET_POOLSIZE(bodytrace);
-        SET_POOLSIZE(tiletrace);
-        SET_POOLSIZE(shapetrace);
-#endif
 #if ENABLE_AUDIO
         SET_POOLSIZE(sound);
         SET_POOLSIZE(music);
@@ -206,5 +199,3 @@ cfg_get_bool(const char *key)
         lua_pop(cfg_L, 1);                      /* ... */
         return result;
 }
-
-#endif  /* ENABLE_LUA */

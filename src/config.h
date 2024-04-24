@@ -83,9 +83,6 @@ struct Config {
                 int collision;
                 int touch;
                 int hackevent;
-                int bodytrace;
-                int tiletrace;
-                int shapetrace;
                 int sound;
                 int music;
         } poolsize;

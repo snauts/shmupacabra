@@ -29,15 +29,6 @@ enum {
         SHAPE_VISITED   = (1<<1)
 };
 
-#if TRACE_MAX
-/*
- * ShapeState records shape state at a given moment in time.
- */
-typedef struct {
-        Property *def; 
-} ShapeState;
-#endif
-
 /*
  * Shape represents a physical shape: either rectangle or circle.
  */
@@ -51,9 +42,6 @@ typedef struct Shape_t {
         uint32_t        color;          /* Color for display in shape editor. */
         unsigned        flags;
         
-#if TRACE_MAX
-        ShapeState      *trace;
-#endif
         struct Group_t  *group;         /* Collision group. */
         
         GridObject      go;             /* So shape can be added to grid.*/
@@ -75,6 +63,5 @@ Shape           *shape_new(struct Body_t *, struct Group_t *, uint8_t stype,
                            ShapeDef def);
 Shape           *shape_clone(struct Body_t *, const Shape *);
 void             shape_free(Shape *);
-void             shape_record_trace(Shape *, unsigned trace_index);
 
 #endif /* GAME2D_SHAPE_H */

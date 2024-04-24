@@ -1,6 +1,8 @@
 #ifndef GAME2D_LOG_H
 #define GAME2D_LOG_H
 
+#include "common.h"
+
 /* No logging for release builds. */
 #ifdef NDEBUG
 

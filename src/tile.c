@@ -5,6 +5,7 @@
 #include "utlist.h"
 #include "world.h"
 
+int total_tile_count = 0;
 #if ENABLE_TILE_GRID
 
 int
@@ -111,6 +112,7 @@ tile_new(Body *body, vect_f pos, vect_f size, float depth, int grid_store)
 {
         extern mem_pool mp_tile;
         Tile *t = mp_alloc(&mp_tile);
+	total_tile_count++;
         
         assert(t && body);
         t->objtype = OBJTYPE_TILE;
@@ -179,6 +181,7 @@ void
 tile_free(Tile *t)
 {
         assert(t && t->body);
+	total_tile_count--;
         
         /* Remove from quad tree if it's in there. */
         if (grid_stored(&t->go))
@@ -197,66 +200,10 @@ tile_free(Tile *t)
                 prop_free(t->color);
         if (t->angle != NULL)
                 prop_free(t->angle);
-        
-#if TRACE_MAX
-        /* Free trace properties and the trace array itself. */
-        TileState *trace = t->trace;
-        if (trace != NULL) {
-                /* Free properties. */
-                for (unsigned i = 0; i < TRACE_MAX; i++) {
-                        if (trace[i].pos != NULL) {
-                                prop_free(trace[i].pos);
-                                prop_free(trace[i].size);
-                                if (trace[i].frame != NULL)
-                                        prop_free(trace[i].frame);
-                                if (trace[i].color != NULL)
-                                        prop_free(trace[i].color);
-                                if (trace[i].angle != NULL)
-                                        prop_free(trace[i].angle);
-                        }
-                }
-                
-                /* Free trace array. */
-                extern mem_pool mp_tiletrace;
-                mp_free(&mp_tiletrace, trace);
-        }
-#endif
+
         extern mem_pool mp_tile;
         mp_free(&mp_tile, t);
 }
-
-#if TRACE_MAX
-
-/*
- * Add current state to tile's trace array in a round-robin fashion.
- */
-void
-tile_record_trace(Tile *t, unsigned trace_index)
-{
-        assert(t && t->trace);
-        TileState *ts = &t->trace[trace_index];
-        
-        /* Free previously stored properties. */
-        if (ts->pos != NULL) {
-                prop_free(ts->pos);
-                prop_free(ts->size);
-                if (ts->frame != NULL)
-                        prop_free(ts->frame);
-                if (ts->color != NULL)
-                        prop_free(ts->color);
-                if (ts->angle != NULL)
-                        prop_free(ts->angle);
-        }
-        
-        /* Copy all properties into trace. */
-        ts->pos = prop_copy(t->pos);    /* Always non-NULL */
-        ts->size = prop_copy(t->size);  /* Always non-NULL */
-        ts->frame = t->frame != NULL ? prop_copy(t->frame) : NULL;
-        ts->color = t->color != NULL ? prop_copy(t->color) : NULL;
-        ts->angle = t->angle != NULL ? prop_copy(t->angle) : NULL;
-}
-
-#endif  /* TRACE_MAX */
 
 #define GET_TIME(tile, anim, now, delta, duration) \
 do { \
