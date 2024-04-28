@@ -3059,10 +3059,10 @@ static int
 LUA_Quit(lua_State *L)
 {
         UNUSED(L);
-        // exit is disabled for web
-        // L_numarg_range(L, 0, 0);
-        // log_msg("User script called Quit()");
-        // exit(EXIT_SUCCESS);
+	EM_ASM(
+		// redirect to webpage root
+		window.location = '/';
+	);
         return 0;
 }
 
