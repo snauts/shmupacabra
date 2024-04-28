@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta content="text/html; charset=utf-8" http-equiv="Content-Type" />
-    <link rel="icon" href="/favicon.png" type="image/png" />
+    <link rel="icon" href="favicon.png" type="image/png" />
     <title>Shmupacabra</title>
     <style>
       html,
@@ -26,15 +26,13 @@
         height: 480px;
         display: none;
       }
-      #canvasContainer:fullscreen {
+      #canvas:fullscreen {
         cursor: none;
       }
       #canvas {
         position: absolute;
         top: 0;
         left: 0;
-        width: 100%;
-        height: 100%;
         outline: none;
       }
       #fullscreenBtn {
@@ -49,8 +47,18 @@
         font-family: "Courier New", Courier, monospace;
         display: none;
       }
+      #startGameBtn {
+        margin-top: 20px;
+        padding: 10px 20px;
+        font-size: 20px;
+        cursor: pointer;
+        background-color: black;
+        color: #00ff00;
+        border: 1px solid #00ff00;
+        outline: none;
+        font-family: "Courier New", Courier, monospace;
+      }
       #psychedelic-heading {
-        text-align: center;
         margin: 10px 0;
         font-size: 52px;
         font-family: "Courier New", Courier, monospace;
@@ -58,9 +66,11 @@
         background-clip: text;
         -webkit-text-fill-color: transparent;
         filter: drop-shadow(2px 2px 2px #222);
+        display: none;
       }
       #loading {
         color: white;
+        display: none;
       }
     </style>
   </head>
@@ -75,7 +85,7 @@
           tabindex="-1"
         ></canvas>
       </div>
-
+      <button id="startGameBtn" onclick="startGame();">START GAME</button>
       <button id="fullscreenBtn" onclick="goFullscreen();">FULLSCREEN</button>
     </div>
     <script>
@@ -97,9 +107,16 @@
         monitorRunDependencies: () => {},
       };
       function goFullscreen() {
-        document.getElementById("canvasContainer").requestFullscreen();
+        Module.canvas.requestFullscreen();
+      }
+      function startGame() {
+        document.getElementById('startGameBtn').style.display = 'none';
+        document.getElementById('psychedelic-heading').style.display = 'block';
+        document.getElementById('loading').style.display = 'inline';
+        var script = document.createElement('script');
+        script.src = 'index.js';
+        document.body.appendChild(script);
       }
     </script>
-    <script async src="index.js"></script>
   </body>
 </html>
