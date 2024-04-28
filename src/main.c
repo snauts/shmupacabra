@@ -147,8 +147,8 @@ int main()
          * Then callback into C to start the game.
          */
         EM_ASM({
-            FS.mkdir("/savedata");
-            FS.mount(IDBFS, {}, "/savedata");
+            FS.mkdir("/shmupacabra");
+            FS.mount(IDBFS, {}, "/shmupacabra");
             FS.syncfs(true, function (err) {
               if (err) {
                 console.error("Error mounting filesystem:", err);

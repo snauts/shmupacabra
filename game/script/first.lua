@@ -4,8 +4,8 @@ dofile("script/vector.lua")
 
 local linux = false
 
-setupFile  = "/savedata/setup.lua"
-saveGame   = "/savedata/saavgaam"
+setupFile  = "/shmupacabra/setup.lua"
+saveGame   = "/shmupacabra/saavgaam"
 
 if util.FileExists(setupFile) then
 	dofile(setupFile)
