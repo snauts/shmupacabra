@@ -50,7 +50,7 @@
       #startGameBtn {
         margin-top: 20px;
         padding: 10px 20px;
-        font-size: 20px;
+        font-size: 30px;
         cursor: pointer;
         background-color: black;
         color: #00ff00;
@@ -58,7 +58,8 @@
         outline: none;
         font-family: "Courier New", Courier, monospace;
       }
-      #psychedelic-heading {
+      .heading {
+        text-align: center;
         margin: 10px 0;
         font-size: 52px;
         font-family: "Courier New", Courier, monospace;
@@ -66,7 +67,6 @@
         background-clip: text;
         -webkit-text-fill-color: transparent;
         filter: drop-shadow(2px 2px 2px #222);
-        display: none;
       }
       #loading {
         color: white;
@@ -76,7 +76,10 @@
   </head>
   <body>
     <div id="container">
-      <h1 id="psychedelic-heading">Prepare to shoot 'em up</h1>
+      <h1 id="press-to-start" class="heading">Press button to start</h1>
+      <h1 id="please-wait" class="heading" style="display: none">
+        Prepare to shoot 'em up
+      </h1>
       <span id="loading">LOADING...</span>
       <div id="canvasContainer">
         <canvas
@@ -97,8 +100,7 @@
             document.getElementById("canvasContainer").style.display = "inline";
             document.getElementById("fullscreenBtn").style.display = "inline";
             document.getElementById("loading").style.display = "none";
-            document.getElementById("psychedelic-heading").style.display =
-              "none";
+            document.getElementById("please-wait").style.display = "none";
           } else {
             document.getElementById("loading").innerText = text;
           }
@@ -110,11 +112,12 @@
         Module.canvas.requestFullscreen();
       }
       function startGame() {
-        document.getElementById('startGameBtn').style.display = 'none';
-        document.getElementById('psychedelic-heading').style.display = 'block';
-        document.getElementById('loading').style.display = 'inline';
-        var script = document.createElement('script');
-        script.src = 'index.js';
+        document.getElementById("startGameBtn").style.display = "none";
+        document.getElementById("press-to-start").style.display = "none";
+        document.getElementById("please-wait").style.display = "block";
+        document.getElementById("loading").style.display = "inline";
+        var script = document.createElement("script");
+        script.src = "index.js";
         document.body.appendChild(script);
       }
     </script>
